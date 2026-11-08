@@ -87,7 +87,7 @@ Leseerlaubnis besteht. Die abgebildete Begleitdatei wurde bereits bewusst geöff
 **Links:** direkt bearbeitbare häufige Tags: Titel, Interpret, Album, Albuminterpret,
 Track/Disc, Jahr, Genre. „Weitere Tags“ öffnet eine Ansicht aller vorhandenen Werte,
 Sprachen und Mehrfachfelder. Unbekannte/binäre Felder bleiben roh erhalten;
-Cover werden zunächst angezeigt und unverändert übernommen.
+Cover erhalten einen eigenen Bereich mit Vorschau und Bearbeitungsaktionen.
 
 **Rechts:** Quellenwähler, Editoransicht, Herkunft und Zeitauflösung. Änderungen
 bleiben zunächst in einem gemeinsamen Arbeitsentwurf. Für Import/Export werden
@@ -100,6 +100,35 @@ Wort- oder Zeilengrenzen. Der Blueprint zeigt eine schematische Wellenform.
 
 Auf schmalen Bildschirmen: Tabs **Lyrics / Tags / Speichern**, darunter bzw. am
 unteren Rand ein kompakter Audioplayer. Keine drei zusammengedrückten Spalten.
+
+## Cover und weitere eingebettete Bilder
+
+Ein eigener Bereich zeigt das ausgewählte Bild, seine Rolle soweit vorhanden,
+Bildanzahl, Format, Auflösung und Dateigröße. Aktionen: **Hinzufügen** (bei fehlendem
+Cover), **Ersetzen**, **Entfernen**, **Exportieren** und **alle Bilder ansehen**.
+Die exportierte Bilddatei verwendet die Originalbytes, soweit das Format dies zulässt.
+Die Abbildung verwendet bewusst ein schematisches Albumcover, kein Verso-App-Icon.
+
+- MP3: Bilder aus ID3-`APIC`-Frames; Bildtyp und Beschreibung erhalten.
+- FLAC: native `PICTURE`-Metadatenblöcke samt Bildtyp/Beschreibung erhalten.
+- M4A: Bilder aus `covr`; mehrere Bilder und ihre Reihenfolge erhalten. MP4 hat
+  dort nicht dieselben Front-/Rückseiten-Rollen wie ID3/FLAC. Die UI darf eine
+  Anzeigewahl nicht als vorhandenes Typ-Tag ausgeben.
+- Mehrere Bilder werden einzeln adressiert. „Frontcover ersetzen“ verändert
+  nicht automatisch Rückseite, Booklet oder andere vorhandene Bilder.
+- Entfernen ist zunächst nur eine Entwurfsänderung und rückgängig machbar.
+  Erst Speichern verändert die ausdrücklich gewählte Audiokopie bzw. das Original.
+- JPEG und PNG als erste Importformate; Signatur, tatsächlich dekodierbare Daten,
+  Auflösung und Ressourcenlimits prüfen. Nicht unterstützte Bildformate ablehnen
+  oder eine ausdrückliche Konvertierung anbieten; nicht still neu kodieren,
+  zuschneiden oder verkleinern.
+- Ohne Cover-Änderung bleiben vorhandene Bilddaten möglichst bytegenau erhalten.
+  Cover werden nicht in LRC oder das derzeitige Lyricsfile-Schema hinein erfunden.
+
+Die Speicherübersicht zeigt für eine Cover-Änderung **Vorher/Nachher**, Ersetzen
+oder Entfernen und den Erhalt anderer Bilder. Das abgebildete Frontcover wird
+nur in der neuen Audiokopie ersetzt. Ein Bildexport ist eine separate Aktion;
+die drei geplanten Dateien bleiben Audiokopie plus zwei Lyrics-Begleitdateien.
 
 ## Speichern als überprüfbarer Vorgang
 
@@ -159,7 +188,7 @@ Nicht sicher erhaltbare Strukturen führen zu einer Warnung bzw. einem Schreibst
 
 1. **Audio lesen und abspielen:** drei Container erkennen, Codecs anzeigen,
    Standard-Tags und unabhängige Lyrics-Quellen auslesen, Wiedergabe/Scrubbing.
-2. **Sicheres Tag-Schreiben:** FLAC, MP3 und M4A jeweils separat freigeben;
+2. **Sicheres Tag- und Cover-Schreiben:** FLAC, MP3 und M4A jeweils separat freigeben;
    temporäre Audiokopie schreiben, erneut lesen, Payload und unberührte Tags prüfen.
 3. **Lyrics-Ziele:** native Plain-Tags und Sidecars; danach geprüfte SYLT-Varianten
    und bewusst gewählte benutzerdefinierte Einbettungen.
@@ -167,7 +196,8 @@ Nicht sicher erhaltbare Strukturen führen zu einer Warnung bzw. einem Schreibst
    Decoderfehler, schreibgeschützte Dateien, abgebrochene Speichervorgänge.
 5. **Plattformtests:** Chromium sowie native Linux-WebKit- und Windows-WebView2-
    Tests mit kleinen selbst erzeugten Audiodateien, mehreren Tags/Sprachen,
-   Coverbildern und echten Audio-Seek-/Metadaten-Roundtrips.
+   mehreren Coverbildern, JPEG/PNG, fehlendem Cover, gezieltem Ersetzen/Entfernen,
+   bytegenauem Erhalt unberührter Bilder und echten Audio-Seek-/Metadaten-Roundtrips.
 
 Kein Album-Batch, kein automatisches Timing und keine Audio-Neukodierung im ersten
 Audio-Release. Audio- und Lyrics-Änderungen werden getrennt nachvollziehbar.
