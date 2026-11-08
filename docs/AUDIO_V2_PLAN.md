@@ -87,23 +87,46 @@ Leseerlaubnis besteht. Die abgebildete Begleitdatei wurde bereits bewusst geöff
 **Links:** direkt bearbeitbare häufige Tags: Titel, Interpret, Album, Albuminterpret,
 Track/Disc, Jahr, Genre. „Weitere Tags“ öffnet eine Ansicht aller vorhandenen Werte,
 Sprachen und Mehrfachfelder. Unbekannte/binäre Felder bleiben roh erhalten;
-Cover erhalten einen eigenen Bereich mit Vorschau und Bearbeitungsaktionen.
+Cover sind direkt innerhalb derselben Track-Tags-Fläche angeordnet, einschließlich
+Vorschau und Bildaktionen. Es gibt keinen separaten globalen Cover-Bereich.
 
 **Rechts:** Quellenwähler, Editoransicht, Herkunft und Zeitauflösung. Änderungen
 bleiben zunächst in einem gemeinsamen Arbeitsentwurf. Für Import/Export werden
 die vorhandenen Konvertierungsbibliotheken verwendet.
 
-**Unten:** echter Audioplayer mit Play/Pause, Zeit, Seek, Lautstärke und
-Geschwindigkeit. Die aktuelle Audiozeit steuert die Lyrics-Hervorhebung.
-Wellenform optional und lazily berechnet; sie ist kein Nachweis für erkannte
-Wort- oder Zeilengrenzen. Der Blueprint zeigt eine schematische Wellenform.
+**Rechts unter dem Lyrics-Editor:** ein zusammenhängender Bereich „Audio & Lyrics“.
+Vorherige, aktuelle und nächste Zeile geben beim Hören Kontext; die aktuelle
+Zeile hebt vorhandene Wortsegmente hervor. Darunter liegen Transportsteuerung,
+präziser Zeitwert und eine gemeinsame, zoombare Zeitleiste mit Audio-Wellenform,
+Zeitlineal, Abspielposition und vorhandenen Lyrics-Markierungen.
+
+- Play/Pause sowie ±5 Sekunden, Wiedergabegeschwindigkeit und Lautstärke liegen
+  in einer kompakten Steuerleiste und bedienen denselben Audioplayer.
+- Die Audiozeit ist die einzige Zeitquelle. Scrubbing, Wort-Hervorhebung,
+  Zeitwert und Zeilenmarkierungen müssen dieselbe Position darstellen.
+- Klick auf eine vorhandene Zeilenmarke springt an deren Anfang; der bisherige
+  Play/Pause-Zustand bleibt erhalten. Das ist Navigation, kein Timing-Editieren.
+- Zoom verändert nur den sichtbaren Ausschnitt. Ausschnittgrenzen und die
+  Option „Gesamten Track anzeigen“ bleiben erkennbar.
+- „Der Wiedergabe folgen“ hält den Ausschnitt am Cursor. Bei manuellem Erkunden
+  kann dieser Modus ausgeschaltet werden, ohne Wiedergabe oder Zeitdaten zu ändern.
+- Zeilenbalken können für die Anzeige begrenzt werden, wenn Endzeiten fehlen;
+  solche Anzeigegrenzen werden niemals zurückgeschrieben. Überlappungen erhalten
+  bei Bedarf eigene Spuren. Ohne Wortzeiten wird die ganze Zeile hervorgehoben.
+- Die Wellenform wird optional/lazy berechnet. Fehlt sie, bleiben Zeitlineal,
+  Wiedergabe und Lyrics-Navigation nutzbar. Sie erzeugt keine erkannten Zeitmarken.
+- Tastatursteuerung des Players darf Texteingaben nicht abfangen. Markierungen
+  und Scrubber brauchen beschriftete, per Tastatur erreichbare Alternativen.
+
+Der Blueprint zeigt eine schematische Wellenform und einen Ausschnitt 00:10–00:22
+bei einer Gesamtspieldauer von 03:42. Es ist keine bereits implementierte Funktion.
 
 Auf schmalen Bildschirmen: Tabs **Lyrics / Tags / Speichern**, darunter bzw. am
 unteren Rand ein kompakter Audioplayer. Keine drei zusammengedrückten Spalten.
 
 ## Cover und weitere eingebettete Bilder
 
-Ein eigener Bereich zeigt das ausgewählte Bild, seine Rolle soweit vorhanden,
+Innerhalb der Track-Tags zeigt der Cover-Abschnitt das ausgewählte Bild, seine Rolle soweit vorhanden,
 Bildanzahl, Format, Auflösung und Dateigröße. Aktionen: **Hinzufügen** (bei fehlendem
 Cover), **Ersetzen**, **Entfernen**, **Exportieren** und **alle Bilder ansehen**.
 Die exportierte Bilddatei verwendet die Originalbytes, soweit das Format dies zulässt.
