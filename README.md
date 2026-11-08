@@ -29,3 +29,13 @@ liegen bei den Bibliotheken und sind unabhängig von der Verso-Oberfläche nutzb
 
 Abhängigkeiten werden lokal per `file:` eingebunden. Keine Submodule,
 keine externen Repositories und keine Registry-Veröffentlichung.
+
+## App-Plan und UI-Blueprint
+
+- [App-Plan und Umsetzungsschritte](docs/APP_PLAN.md)
+- [UI-Konzept, Zustände und Bedienung](docs/UI_BLUEPRINT.md)
+- [Desktop-Blueprint](docs/blueprint/desktop.svg)
+- [Mobile-Blueprint](docs/blueprint/mobile.svg)
+
+Die Blueprints sind statische Vektorgrafiken; die grafische App ist damit noch
+nicht implementiert. Die CLI bleibt unverändert.
