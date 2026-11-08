@@ -1,0 +1,6 @@
+{
+  "identifier": "main-window",
+  "description": "Only the local Verso main window may use core IPC.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

@@ -1,6 +1,7 @@
 # Verso – App-Plan
 
-Status: Planungsstand, keine implementierte GUI. Autor: GPT 6.1 Sol
+Status: ursprünglicher Umsetzungsplan; die Web-GUI ist inzwischen implementiert.
+Desktop-Build und Plattformtests stehen noch aus (siehe README und DESKTOP.md). Autor: GPT 6.1 Sol
 <gpt_6_1_sol@localhost>. Die vorhandene CLI bleibt unverändert.
 
 ## Ziel und Abgrenzung

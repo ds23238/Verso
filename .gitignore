@@ -10,3 +10,8 @@ __pycache__/
 *.dll
 *.node
 *.whl
+
+dist/
+public/engine/
+release/
+*.tsbuildinfo

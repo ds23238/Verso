@@ -1,41 +1,93 @@
 # Verso
 
-Autor: GPT 6.1 Sol <gpt_6_1_sol@localhost>
+LRC, Enhanced LRC und Lyricsfile direkt auf dem eigenen Gerät konvertieren.
+Autor: GPT 6.1 Sol <gpt_6_1_sol@localhost>.
 
-Lokales App-Repository. Aktuell existiert eine kleine CLI als erster Verbraucher
-der Bibliotheken. Die grafische Web-/Tauri-Oberfläche ist noch nicht implementiert.
-Keine veröffentlichten oder portablen Desktop-Builds vorhanden.
+## Implementiert
 
-## Lokaler Start
+- Aufgeräumte React-/TypeScript-Oberfläche ohne App-Icon, Light/Dark/System.
+- Live-Eingabe, Dateiimport und Drag-and-drop, Beispiele, Metadaten-Overrides.
+- LRC/E-LRC ↔ Lyricsfile über die gemeinsamen Rust-/WASM-Bibliotheken im Worker.
+- Aktuelle Ausgabe kopieren und als neue UTF-8-Datei exportieren.
+- Konkrete Hinweise zu Informationsverlust, explizite Offset-Entscheidung.
+- Timing-Vorschau mit Zeitcursor und vorhandenen Wort-/Zeilenmarken; ohne Audio.
+- Responsive Tabs, Keyboard-Bedienung, aktuelle Exporte gegen veraltete Ergebnisse gesperrt.
+- Tauri-Hülle mit nativen Dateiöffnen-/Speichern-Dialogen und portablem Buildpfad.
 
-Die Repos `Verso`, `lyricsbridge` und `lyricsfile` liegen nebeneinander.
-Zuerst die Bibliotheken bauen, dann:
+Keine Inhalte werden hochgeladen oder dauerhaft gespeichert. Nur die Theme-
+Präferenz wird gespeichert. Ohne Export gehen Inhalte beim Schließen verloren.
+Nach dem Laden funktioniert die Konvertierung offline; ein Offline-Neustart
+ist ohne separat eingerichteten Service-Worker-/App-Cache nicht zugesichert.
+
+## Web-App starten und bauen
+
+Die Repos `Verso`, `lyricsbridge`, `lyricsfile` liegen nebeneinander.
+Node >=22.12 bzw. >=20.19, Python >=3.10. Vorhandene WASM-Artefakte werden beim
+Start/Build nach `public/engine/` kopiert. Fehlen sie, zunächst die Bibliotheken
+bauen (Rust-Target wasm32-unknown-unknown, wasm-bindgen-CLI passend zu Cargo.lock):
 
 ```sh
-npm install
-npm run convert -- import ../work/test-inputs/normal.lrc
-npm run convert -- export ../work/test-inputs/example.lyricsfile.yaml --enhanced
+npm ci
+npm run engine:build
+npm run dev
 ```
 
-Konvertierter Text geht nach stdout, Warnungen nach stderr. Es werden keine
-Eingabedateien überschrieben. Für sauberes Umleiten `node src/cli.mjs ...` nutzen.
+Falls die Bibliotheksartefakte bereits vorhanden sind, entfällt `engine:build`.
 
-## Geplanter Ausbau
+```sh
+npm run package:web
+```
 
-TypeScript-Oberfläche mit Texteingabe, Live-Vorschau und Dateiimport/-export.
-Statisch hostbare Web-App über WASM; portable Desktop-App über Tauri.
-Der gemeinsame Rust-Kern liefert alle Formatregeln. Native Dart-/Flutter-Bindings
-liegen bei den Bibliotheken und sind unabhängig von der Verso-Oberfläche nutzbar.
+`release/verso-web/` und `dist/` enthalten die vollständig statische Web-App
+inklusive WASM. Den gesamten Ordner auf einem HTTP(S)-Server hosten, auch unter
+einem Unterverzeichnis möglich. Keine Node-/Rust-Serverlaufzeit erforderlich.
+Direktes Öffnen von `index.html` über `file://` ist wegen Modul-/Worker-Sicherheit
+kein unterstützter Startweg. WASM-Dateien mit `application/wasm` ausliefern.
+Bei eigener CSP sind mindestens gleichursprüngliche Skripte/Worker/Verbindungen
+und WASM-Ausführung erforderlich; alle Assets werden lokal gebündelt.
 
-Abhängigkeiten werden lokal per `file:` eingebunden. Keine Submodule,
-keine externen Repositories und keine Registry-Veröffentlichung.
+## Desktop
 
-## App-Plan und UI-Blueprint
+Siehe [Desktop-Voraussetzungen und Build](docs/DESKTOP.md).
+`npm run desktop:build` erzeugt ohne Installer ausführbare Dateien, sofern die
+plattformspezifischen Werkzeuge vorhanden sind. In der aktuellen Linux-Umgebung
+ist dies durch fehlende WebKitGTK-Entwicklungspakete blockiert; Windows benötigt
+eine eigene Build-/Testumgebung. Native Kompilate sind noch nicht verifiziert.
 
-- [App-Plan und Umsetzungsschritte](docs/APP_PLAN.md)
-- [UI-Konzept, Zustände und Bedienung](docs/UI_BLUEPRINT.md)
-- [Desktop-Blueprint](docs/blueprint/desktop.svg)
-- [Mobile-Blueprint](docs/blueprint/mobile.svg)
+## Tests
 
-Die Blueprints sind statische Vektorgrafiken; die grafische App ist damit noch
-nicht implementiert. Die CLI bleibt unverändert.
+```sh
+npm run build
+npm test
+```
+
+Tests prüfen den UI-Adapter mit echten nativen Bibliotheken, die gebauten
+Worker-/WASM-Artefakte, Komponenten und Hooks in jsdom, stale-result-Schutz,
+Dateidekodierung, Metadaten, Exporte, Warnungen, Themes und Tastaturbedienung.
+Die drei echten Testdateien bleiben außerhalb aller Repos unter
+`../work/test-inputs` oder dem Pfad aus `LYRICS_TEST_INPUTS`.
+Für die Adaptertests benötigen die Bibliotheken ihre lokal gebauten Node-Addons.
+
+Eine echte Browser-/visuelle Prüfung der fertigen Oberfläche ist in dieser
+Sitzung nicht erfolgt: Der für den verwalteten Sites-Workflow erforderliche
+Browserzugang steht nicht zur Verfügung. jsdom und der Node-Worker-Test sind
+keine Ersatzbehauptung für Chromium-/WebKit-/Windows-End-to-End-Tests.
+
+## CLI
+
+Die bestehende CLI bleibt erhalten:
+
+```sh
+node src/cli.mjs import ../work/test-inputs/normal.lrc
+node src/cli.mjs export ../work/test-inputs/example.lyricsfile.yaml --enhanced
+```
+
+Ausgabe nach stdout, Warnungen nach stderr. Keine Eingabe wird automatisch überschrieben.
+
+## Planung und Design
+
+[App-Plan](docs/APP_PLAN.md), [UI-Blueprint](docs/UI_BLUEPRINT.md),
+[Desktop-Entwurf](docs/blueprint/desktop.svg), [Mobil-Entwurf](docs/blueprint/mobile.svg).
+Die SVGs dokumentieren den Layoutentwurf; sie wurden auf den Schriftzug „verso“
+ohne Logo aktualisiert. Die fertige Oberfläche reduziert weitere Bedienelemente.
+Batch-Verarbeitung, Audio-Dateien, Installer und persistente Entwürfe bleiben spätere Erweiterungen.

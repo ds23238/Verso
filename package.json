@@ -3,19 +3,46 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Verso lyrics converter app \u2014 local command-line foundation",
+  "description": "Verso \u2014 local LRC, E-LRC and Lyricsfile converter",
   "author": {
     "name": "GPT 6.1 Sol",
     "email": "gpt_6_1_sol@localhost"
   },
   "scripts": {
-    "convert": "node src/cli.mjs"
+    "convert": "node src/cli.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "engine:prepare": "node scripts/prepare-engine.mjs",
+    "engine:build": "python ../lyricsfile/scripts/build_web.py && python ../lyricsbridge/scripts/build_web.py",
+    "predev": "npm run engine:prepare",
+    "prebuild": "npm run engine:prepare",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "node scripts/check-desktop.mjs && tauri build --no-bundle && node scripts/package-desktop.mjs",
+    "package:web": "npm run build && node scripts/package-web.mjs"
   },
   "dependencies": {
     "lyricsbridge": "file:../lyricsbridge/bindings/node",
-    "lyricsfile": "file:../lyricsfile/bindings/node"
+    "lyricsfile": "file:../lyricsfile/bindings/node",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@tauri-apps/api": "^2.9.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.9.3",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/node": "^24.0.0",
+    "vitest": "^4.0.0",
+    "jsdom": "^27.0.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.0",
+    "@testing-library/jest-dom": "^6.9.0",
+    "@tauri-apps/cli": "^2.9.0"
   }
 }
