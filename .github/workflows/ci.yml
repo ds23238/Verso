@@ -134,12 +134,19 @@ jobs:
       - name: Build portable executable
         id: build
         run: npm run desktop:build
+      - name: Archive Linux executable preserving permissions
+        if: runner.os == 'Linux'
+        run: tar -C release -czf release/verso-linux-x64.tar.gz verso-linux-x64
+      - name: Archive Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path release/verso-windows-x64 -DestinationPath release/verso-windows-x64.zip -Force
       - name: Upload portable executable
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: verso-${{ matrix.platform }}-x64
-          path: release/verso-${{ matrix.platform }}-x64/
+          path: release/verso-${{ matrix.platform }}-x64.*
           if-no-files-found: error
           retention-days: 14
       - name: Install Tauri WebDriver bridge
