@@ -14,21 +14,36 @@
 - Rust-Desktopquellen mit rustfmt geprüft; Cargo.lock für reproduzierbare Auflösung.
 - Statische Auslieferung unter `release/verso-web/`, inklusive aller Engine-Dateien.
 
-Die 27 Tests sind keine plattformübergreifende Desktop- oder echte Browserprüfung.
-Die Konvertierungsbibliotheken selbst hatten bereits separate Chromium-/Sprach-
-Tests; dies ersetzt keine visuelle Prüfung dieser neuen App-Oberfläche.
+## Verifiziert mit GitHub Actions
 
-## Offen / blockiert
+[Erfolgreicher Code-Lauf](https://github.com/ds23238/Verso/actions/runs/42525115274),
+Quellstand `ff9e27f`.
 
-- Visuelle Browser-QA: Im verwalteten Sites-Workflow fehlt `cua_repl.js`; dessen
-  Vorgaben erlauben hier keinen alternativen Preview-/Browsersteuerungsweg.
-  Deshalb wurde kein Preview-Server gestartet und kein Browser-Screenshot als
-  Verifikation ausgegeben.
-- Linux-Desktopbuild: Systemcheck meldet fehlende WebKitGTK-/GTK-Entwicklungspakete.
-  Kein provisionierter Paketinstaller/sudo-Zugang in dieser Umgebung.
-- Windows-Desktopbuild und Starttests: keine Windows-Buildumgebung verfügbar.
-- Native Dialoge und Worker/WASM unter der tatsächlichen WebView-/CSP-Umgebung
-  müssen nach einem erfolgreichen nativen Build geprüft werden.
+- Bibliotheken: Rust, Python, Node.js, Dart und Browser-WASM liefern identische
+  Ergebnisse für alle drei temporären Eingabedateien. Native Rust-Tests,
+  TypeScript-Prüfungen und Dart-Analyse bestanden.
+- Web-App: die 27 App-Tests sowie echte Chromium-Tests für Live-Konvertierung,
+  Metadaten, ungültige Eingaben, Downloadinhalt, Zwischenablage, Vorschau,
+  mobile Tabs, Dateieingabe und Drag-and-drop bestanden.
+- Desktop-, Mobile- und Dark-Mode-Screenshots aus Chromium wurden gesichtet.
+  Kein horizontaler Seitenüberlauf an den geprüften Größen.
+- Linux: portable ausführbare Datei gebaut; tatsächliche WebKit-WebView startet
+  und konvertiert über Worker/WASM unter der produktiven CSP.
+- Windows: portable EXE gebaut; tatsächliche WebView2 startet und konvertiert
+  über Worker/WASM unter der produktiven CSP.
+- Artefakte mit Web-App, portablen Dateien, Screenshots und Logs hochgeladen.
+
+Die ursprüngliche lokale Browser-/GTK-/Windows-Beschränkung wurde durch die
+passenden GitHub-Runner für diese Prüfungen überwunden. Es wurden keine lokalen
+Browserprüfungen entgegen den Vorgaben des verwalteten Sites-Workflows ausgeführt.
+
+## Weitere Grenzen
+
+Native Betriebssystem-Datei-/Speicherdialoge sind nicht automatisiert bedient
+worden. Die Starttests ersetzen keine breite Prüfung älterer OS-Versionen oder
+manuelle Accessibility-Abnahme. Die Bibliotheks-Sprachanbindungen wurden nicht
+alle als native Windows-Pakete getestet; die Windows-App nutzt den getesteten
+WASM-Kern.
 
 ## Befehle
 
@@ -39,6 +54,7 @@ node scripts/package-web.mjs
 npm run desktop:build
 ```
 
-Der letzte Befehl stoppt hier absichtlich mit einer verständlichen Meldung,
-bevor ein unmöglicher nativer Build angestoßen wird. Voraussetzungen stehen in
-`DESKTOP.md`. Alle Inhalte und Tests bleiben lokal; keine Veröffentlichung.
+Der Desktop-Befehl benötigt die Voraussetzungen aus `DESKTOP.md` und stoppt
+hier lokal vor fehlenden Systembibliotheken. Auf GitHub-Runnern ist er erfolgreich
+verifiziert. Der Repository-Quellstand und Actions-Artefakte sind veröffentlicht;
+ein öffentlich gehosteter App-Dienst oder GitHub Release wurde nicht eingerichtet.

@@ -1,7 +1,8 @@
 # Verso – App-Plan
 
 Status: ursprünglicher Umsetzungsplan; die Web-GUI ist inzwischen implementiert.
-Desktop-Build und Plattformtests stehen noch aus (siehe README und DESKTOP.md). Autor: GPT 6.1 Sol
+Web- und portable Desktop-Builds sowie native Smoke-Tests sind inzwischen in
+GitHub Actions verifiziert (siehe README, ACTIONS.md und DESKTOP.md). Autor: GPT 6.1 Sol
 <gpt_6_1_sol@localhost>. Die vorhandene CLI bleibt unverändert.
 
 ## Ziel und Abgrenzung

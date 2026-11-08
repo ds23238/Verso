@@ -43,6 +43,7 @@ Start/Build nach `public/engine/` kopiert. Fehlen sie, zunächst die Bibliotheke
 bauen (Rust-Target wasm32-unknown-unknown, wasm-bindgen-CLI passend zu Cargo.lock):
 
 ```sh
+python scripts/bootstrap-libraries.py
 npm ci
 npm run engine:build
 npm run dev
@@ -66,9 +67,9 @@ und WASM-Ausführung erforderlich; alle Assets werden lokal gebündelt.
 
 Siehe [Desktop-Voraussetzungen und Build](docs/DESKTOP.md).
 `npm run desktop:build` erzeugt ohne Installer ausführbare Dateien, sofern die
-plattformspezifischen Werkzeuge vorhanden sind. In der aktuellen Linux-Umgebung
-ist dies durch fehlende WebKitGTK-Entwicklungspakete blockiert; Windows benötigt
-eine eigene Build-/Testumgebung. Native Kompilate sind noch nicht verifiziert.
+plattformspezifischen Werkzeuge vorhanden sind. Lokal fehlen hier WebKitGTK-Entwicklungspakete; GitHub Actions übernimmt deshalb
+die nativen Builds. Portable Linux- und Windows-Kompilate wurden dort erfolgreich
+gebaut und durch echte WebView-Start-/Konvertierungstests geprüft.
 
 ## Tests
 
@@ -84,10 +85,11 @@ Die drei echten Testdateien bleiben außerhalb aller Repos unter
 `../work/test-inputs` oder dem Pfad aus `LYRICS_TEST_INPUTS`.
 Für die Adaptertests benötigen die Bibliotheken ihre lokal gebauten Node-Addons.
 
-Eine echte Browser-/visuelle Prüfung der fertigen Oberfläche ist in dieser
-Sitzung nicht erfolgt: Der für den verwalteten Sites-Workflow erforderliche
-Browserzugang steht nicht zur Verfügung. jsdom und der Node-Worker-Test sind
-keine Ersatzbehauptung für Chromium-/WebKit-/Windows-End-to-End-Tests.
+Die fertige Oberfläche wurde inzwischen in GitHub Actions in echtem Chromium
+geprüft; Screenshots für Desktop, Mobile und Dark Mode wurden gesichtet. Native
+Start-/Konvertierungstests sind unter Linux-WebKit und Windows-WebView2 bestanden.
+Nachweis und Downloads: [verifizierter Actions-Lauf](https://github.com/ds23238/Verso/actions/runs/42525115274).
+Siehe auch [Actions und Artefakte](docs/ACTIONS.md).
 
 ## CLI
 

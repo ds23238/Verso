@@ -13,6 +13,7 @@ Alle drei Repositories nebeneinander ablegen. Node >=22.12 (oder >=20.19 gemäß
 Vite 7), Python >=3.10, Rust stable und die passende wasm-bindgen-CLI installieren.
 
 ```sh
+python scripts/bootstrap-libraries.py
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli --version 0.2.130 --locked
 npm ci
@@ -54,16 +55,22 @@ gewählten Zielpfad. Es werden keine Dateiinhalte in Einstellungen gespeichert.
 Die Theme-Präferenz wird lokal gespeichert; WebView2/Tauri können übliche
 Anwendungs-/WebView-Datenverzeichnisse anlegen.
 
-## Verifikationsstand in dieser Umgebung
+## Verifikationsstand
 
-Die Konfiguration wurde gegen das Schema der installierten Tauri-CLI geprüft;
-die Rust-Quellen wurden formatiert. Ein nativer Build wurde versucht, stoppt aber
-bereits beim Systemcheck: WebKitGTK-/GTK-Entwicklungspakete sind nicht vorhanden.
-Es gibt hier keine provisionierte sudo-/Paketinstaller-Möglichkeit. Ein Windows-
-Buildsystem steht ebenfalls nicht zur Verfügung.
+GitHub Actions hat die portable Linux-Datei auf Ubuntu 24.04 und die portable
+Windows-EXE auf Windows Server 2022 erfolgreich gebaut. Anschließend sind auf
+beiden Plattformen WebDriver-Smoke-Tests bestanden: echter Anwendungsstart,
+Laden der Worker-/WASM-Dateien unter der Tauri-CSP, Live-Konvertierung und
+Erhaltung vorhandener Wortanfänge.
 
-Deshalb sind derzeit **keine erfolgreich gebauten oder gestarteten nativen
-Linux-/Windows-Kompilate** bestätigt. Vor einer Desktop-Freigabe müssen auf beiden
-Systemen Build, Start, WASM-/Worker-Laden unter der Tauri-CSP sowie native Datei-
-dialoge, Unicode und Export geprüft werden. Die Web-App ist separat gebaut und
-mit den dokumentierten Komponenten-/Worker-Tests geprüft.
+[Verifizierter Build und Artefakte](https://github.com/ds23238/Verso/actions/runs/42525115274).
+Artefakte: `verso-linux-x64` (TAR, erhält Ausführungsrechte) und
+`verso-windows-x64` (ZIP). Native Screenshots/Logs liegen in den Report-Artefakten.
+Die Dateien sind ohne Installer; plattformspezifische Laufzeiten bleiben notwendig.
+
+Native Betriebssystem-Dateidialoge und eine breite Matrix älterer
+Linux-/Windows-Versionen sind nicht automatisiert geprüft. Der Linux-Build ist
+kein Versprechen zur Kompatibilität mit Distributionen mit älterer glibc.
+
+Die lokale Chat-Umgebung hat weiterhin keine WebKitGTK-Entwicklungspakete;
+dieser lokale Systemmangel blockiert die Builds auf GitHub Actions nicht mehr.
