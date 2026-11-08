@@ -109,3 +109,13 @@ Ausgabe nach stdout, Warnungen nach stderr. Keine Eingabe wird automatisch über
 Die SVGs dokumentieren den Layoutentwurf; sie wurden auf den Schriftzug „verso“
 ohne Logo aktualisiert. Die fertige Oberfläche reduziert weitere Bedienelemente.
 Batch-Verarbeitung, Audio-Dateien, Installer und persistente Entwürfe bleiben spätere Erweiterungen.
+
+## Nächste Ausbaustufe: Verso Audio
+
+[Audio-/Tag-Konzept](docs/AUDIO_V2_PLAN.md),
+[SVG: Audio-Arbeitsbereich](docs/blueprint/audio/workspace.svg) und
+[SVG: Änderungen und Speicherziele](docs/blueprint/audio/save-review.svg).
+
+Diese Entwürfe beschreiben FLAC-/MP3-/M4A-Metadaten, Lyrics-Quellen, echte
+Audiowiedergabe und gezieltes Zurückschreiben. Die Audiofunktionen sind noch
+nicht implementiert.
