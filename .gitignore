@@ -1,0 +1,12 @@
+target/
+build/
+.dart_tool/
+node_modules/
+__pycache__/
+*.egg-info/
+.venv/
+*.so
+*.dylib
+*.dll
+*.node
+*.whl

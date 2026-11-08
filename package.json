@@ -1,0 +1,21 @@
+{
+  "name": "verso",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Verso lyrics converter app \u2014 local command-line foundation",
+  "author": {
+    "name": "GPT 6.1 Sol",
+    "email": "gpt_6_1_sol@localhost"
+  },
+  "scripts": {
+    "convert": "node src/cli.mjs"
+  },
+  "dependencies": {
+    "lyricsbridge": "file:../lyricsbridge/bindings/node",
+    "lyricsfile": "file:../lyricsfile/bindings/node"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
