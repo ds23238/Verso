@@ -35,7 +35,7 @@ try{
  await page.getByLabel('Zielformat').selectOption('elrc');
  await page.waitForFunction(()=>document.querySelector('textarea[aria-label=Ergebnis]')?.value.includes('<00:01.200>Hallo'));
  const before=await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue();
- await page.getByRole('slider',{name:'Vorschauzeit'}).fill('1600');assert.equal(await page.locator('.word-active').first().textContent(),'Hallo ');
+ await page.getByRole('slider',{name:'Vorschauzeit'}).evaluate(element=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(element,'1600');element.dispatchEvent(new Event('input',{bubbles:true}));});assert.equal(await page.locator('.word-active').first().textContent(),'Hallo ');
  assert.equal(await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue(),before);
  await page.getByRole('combobox',{name:'Darstellung'}).selectOption('dark');assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
  await page.screenshot({path:'artifacts/dark.png',fullPage:true});
