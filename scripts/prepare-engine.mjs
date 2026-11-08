@@ -1,8 +1,11 @@
 import { cp, mkdir, access } from "node:fs/promises";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve, sep } from "node:path";
 const root = new URL("../", import.meta.url);
 for (const name of ["lyricsfile", "lyricsbridge"]) {
-  const source = new URL(`../${name}/bindings/node/`, root);
+  const source = process.env.VERSO_ENGINE_DIR
+    ? new URL(`${name}/`, pathToFileURL(resolve(process.env.VERSO_ENGINE_DIR) + sep))
+    : new URL(`../${name}/bindings/node/`, root);
   try {
     await access(new URL(`web/wasm/${name}_bg.wasm`, source));
   } catch {

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import * as api from '../bindings/node/index.js';
+const source = readFileSync(`${process.env.LYRICS_TEST_INPUTS}/example.lyricsfile.yaml`, 'utf8');
+const {document: doc} = api.parse(source);
+assert.equal(doc.lines[0].words[1].start_ms, 1800);
+assert.deepEqual(api.parse(api.stringify(doc)).document, doc);
+assert.deepEqual(api.validate(doc), []);
+assert.throws(() => api.parse(source + '\nversion: "1.0"\n'));
+console.log('lyricsfile Node: fixture, roundtrip, validation and error passed');

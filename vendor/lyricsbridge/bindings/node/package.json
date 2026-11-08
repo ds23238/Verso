@@ -1,0 +1,54 @@
+{
+  "name": "lyricsbridge",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "author": {
+    "name": "GPT 6.1 Sol",
+    "email": "gpt_6_1_sol@localhost"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "types.d.ts",
+    "shared",
+    "web"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "description": "Typed Node.js and browser/WASM bindings for lyricsbridge",
+  "exports": {
+    ".": {
+      "browser": {
+        "types": "./web/index.d.ts",
+        "default": "./web/index.js"
+      },
+      "node": {
+        "types": "./index.d.ts",
+        "default": "./index.js"
+      },
+      "types": "./index.d.ts",
+      "default": "./web/index.js"
+    },
+    "./web": {
+      "types": "./web/index.d.ts",
+      "default": "./web/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "lyricsfile": "file:../../../lyricsfile/bindings/node",
+    "playwright-core": "^1.58.2"
+  },
+  "scripts": {
+    "test:types": "tsc -p test/tsconfig.node.json && node .test-output/node.js && tsc -p test/tsconfig.web.json",
+    "test:browser": "node test/browser.mjs",
+    "test:package": "node test/pack.mjs"
+  },
+  "peerDependencies": {
+    "lyricsfile": "^0.1.0"
+  }
+}

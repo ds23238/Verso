@@ -1,0 +1,56 @@
+/** Run in GitHub Actions: real Chromium, production assets, no external services. */
+import assert from 'node:assert/strict';
+import {createServer} from 'node:http';
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {resolve,sep} from 'node:path';
+import {chromium} from 'playwright-core';
+const root=resolve('dist');
+const server=createServer(async(req,res)=>{try{const path=resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));if(path!==root&&!path.startsWith(root+sep))throw Error('Invalid path');const file=path===root?resolve(root,'index.html'):path;const bytes=await readFile(file);res.writeHead(200,{'Content-Type':file.endsWith('.wasm')?'application/wasm':file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':file.endsWith('.html')?'text/html':'application/octet-stream'}).end(bytes);}catch{res.writeHead(404).end();}});
+await new Promise(done=>server.listen(0,'127.0.0.1',done));
+const origin=`http://127.0.0.1:${server.address().port}`;
+let browser;
+await mkdir('artifacts',{recursive:true});
+try{
+ browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});
+ const context=await browser.newContext({viewport:{width:1440,height:1100},acceptDownloads:true,permissions:['clipboard-read','clipboard-write']});
+ const page=await context.newPage();const errors=[];const external=[];
+ page.on('pageerror',error=>errors.push(String(error)));context.on('request',request=>{if(!request.url().startsWith(origin+'/'))external.push(request.url());});
+ const ready=()=>page.waitForFunction(()=>document.querySelector('.status-row [role=status]')?.textContent==='Konvertierung bereit');
+ await page.goto(origin);await page.getByLabel('Zum Ausprobieren').selectOption('elrc');await ready();
+ assert((await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue()).includes('words:'));
+ assert.equal(await page.locator('img').count(),0);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await page.screenshot({path:'artifacts/desktop.png',fullPage:true});
+ await page.getByRole('textbox',{name:'Eingabe',exact:true}).fill('[ti:T]\n[ar:A]\n[00:99]Bad');
+ await page.waitForFunction(()=>document.querySelector('.status-row [role=status]')?.textContent==='Eingabe prüfen');
+ assert(await page.getByRole('button',{name:'Exportieren',exact:true}).isDisabled());
+ await page.getByLabel('Zum Ausprobieren').selectOption('elrc');await ready();
+ await page.getByPlaceholder('Titel ergänzen').fill('Geprüfter Titel');await ready();
+ const output=await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue();assert(output.includes('Geprüfter Titel'));
+ const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Exportieren',exact:true}).click();const download=await downloadPromise;
+ assert.equal(download.suggestedFilename(),'abendlicht.lyricsfile.yaml');assert.equal(await readFile(await download.path(),'utf8'),output);
+ await page.getByRole('button',{name:'Kopieren',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),output);
+ await page.getByLabel('Zum Ausprobieren').selectOption('lyricsfile');
+ await page.waitForFunction(()=>document.querySelector('.diagnostics')?.textContent.includes('Wortzeiten gehen beim normalen LRC-Export verloren'));
+ await page.getByLabel('Zielformat').selectOption('elrc');
+ await page.waitForFunction(()=>document.querySelector('textarea[aria-label=Ergebnis]')?.value.includes('<00:01.200>Hallo'));
+ const before=await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue();
+ await page.getByRole('slider',{name:'Vorschauzeit'}).fill('1600');assert.equal(await page.locator('.word-active').first().textContent(),'Hallo ');
+ assert.equal(await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue(),before);
+ await page.getByRole('combobox',{name:'Darstellung'}).selectOption('dark');assert.equal(await page.locator('html').getAttribute('data-theme'),'dark');
+ await page.screenshot({path:'artifacts/dark.png',fullPage:true});
+ await page.getByRole('combobox',{name:'Darstellung'}).selectOption('light');
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole('tab',{name:'Ergebnis',exact:true}).click();assert(await page.getByRole('textbox',{name:'Ergebnis',exact:true}).isVisible());assert(!await page.getByRole('textbox',{name:'Eingabe',exact:true}).isVisible());
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+ await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
+ await page.getByRole('tab',{name:'Eingabe',exact:true}).click();await page.setViewportSize({width:1440,height:1100});
+ await page.getByLabel('Lyrics-Datei öffnen',{exact:true}).setInputFiles(resolve(process.env.LYRICS_TEST_INPUTS,'normal.lrc'));await ready();
+ assert.equal(await page.getByPlaceholder('Titel ergänzen').inputValue(),'Abendlicht');
+ await page.evaluate(()=>{const data=new DataTransfer();data.items.add(new File(['[ti:Drag]\n[ar:CI]\n[00:01.200]Drop'],'drop.lrc',{type:'text/plain'}));document.querySelector('.app-shell').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data}));});await ready();
+ assert.equal(await page.getByPlaceholder('Titel ergänzen').inputValue(),'Drag');
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+ await writeFile('artifacts/browser-report.json',JSON.stringify({status:'passed',screenshots:['desktop.png','dark.png','mobile.png'],externalRequests:external,pageErrors:errors},null,2));
+ await context.close();console.log('PASS: real Chromium UI, worker, metadata, invalid input, download, clipboard, preview, dark/mobile, file import and drag/drop.');
+}catch(error){await writeFile('artifacts/browser-error.txt',String(error));throw error;}
+finally{await browser?.close();await new Promise(done=>server.close(done));}

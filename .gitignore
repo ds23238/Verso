@@ -15,3 +15,5 @@ dist/
 public/engine/
 release/
 *.tsbuildinfo
+
+artifacts/

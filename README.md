@@ -19,6 +19,22 @@ Präferenz wird gespeichert. Ohne Export gehen Inhalte beim Schließen verloren.
 Nach dem Laden funktioniert die Konvertierung offline; ein Offline-Neustart
 ist ohne separat eingerichteten Service-Worker-/App-Cache nicht zugesichert.
 
+## GitHub-Checkout und Actions
+
+Das Repository ist auf GitHub unter `ds23238/Verso` verfügbar. In einem frischen
+Checkout zuerst `python scripts/bootstrap-libraries.py` ausführen, dann `npm ci`.
+Die separaten Bibliotheken werden aus versionierten Quellcode-Snapshots neben
+Verso bereitgestellt; bestehende lokale Bibliotheks-Repositories werden nie überschrieben.
+`vendor/manifest.json` dokumentiert die exakten Quellstände und SHA-256-Prüfsummen.
+Kompilierte Bindings und die drei temporären Testdateien bleiben unveröffentlicht.
+
+`.github/workflows/ci.yml` prüft Bibliotheken in allen vier Sprachen, die Web-App
+in echtem Chromium und baut portable Linux-/Windows-Dateien. Native WebDriver-
+Tests prüfen Start, WASM/Worker unter der tatsächlichen CSP und Live-Konvertierung.
+Die Actions-Artefakte enthalten Web-App, portable Dateien und Test-Screenshots.
+Ein erfolgreiches Hochladen ist noch keine Aussage über den Ausgang der Läufe;
+maßgeblich ist der jeweilige Actions-Status.
+
 ## Web-App starten und bauen
 
 Die Repos `Verso`, `lyricsbridge`, `lyricsfile` liegen nebeneinander.

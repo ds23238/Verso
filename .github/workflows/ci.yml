@@ -1,0 +1,164 @@
+name: Build and test Verso
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verso-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Libraries, web and Chromium
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      LYRICS_TEST_INPUTS: ${{ github.workspace }}/../work/test-inputs
+      DASH__SUPPRESS_ANALYTICS: 'true'
+      ANALYZER_STATE_LOCATION_OVERRIDE: ${{ github.workspace }}/../work/dart-analyzer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Materialize pinned library sources and temporary fixtures
+        run: |
+          python scripts/bootstrap-libraries.py
+          python scripts/prepare-ci-fixtures.py
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ../lyricsfile -> target
+            ../lyricsbridge -> target
+      - name: Install matching wasm-bindgen CLI
+        run: |
+          version=0.2.130
+          curl --fail --location --retry 3 "https://github.com/wasm-bindgen/wasm-bindgen/releases/download/$version/wasm-bindgen-$version-x86_64-unknown-linux-musl.tar.gz" -o "$RUNNER_TEMP/wasm-bindgen.tar.gz"
+          tar -xzf "$RUNNER_TEMP/wasm-bindgen.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/wasm-bindgen-$version-x86_64-unknown-linux-musl" >> "$GITHUB_PATH"
+      - name: Install app and Chromium
+        run: |
+          npm ci
+          node node_modules/playwright-core/cli.js install --with-deps chromium
+          node --input-type=module -e "import {chromium} from 'playwright-core'; console.log('PLAYWRIGHT_CHROMIUM_EXECUTABLE=' + chromium.executablePath())" >> "$GITHUB_ENV"
+      - name: Build and compare libraries in Rust, Python, Node, Dart and browser
+        run: python ../lyricsbridge/scripts/check.py --build --web
+      - name: Build and test the application
+        run: |
+          npm run build
+          npm test
+          npm run test:browser
+          node scripts/package-web.mjs
+      - name: Share built WASM with native jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: verso-engine
+          path: public/engine/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload statically hostable application
+        uses: actions/upload-artifact@v4
+        with:
+          name: verso-web
+          path: release/verso-web/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload browser reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verso-browser-report
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  desktop:
+    name: Portable ${{ matrix.platform }} and native WebView test
+    needs: web
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+          - os: windows-2022
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    env:
+      VERSO_ENGINE_DIR: ${{ github.workspace }}/../verso-engine
+      WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux development libraries and native WebDriver
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf webkit2gtk-driver xvfb
+      - name: Materialize pinned sources
+        run: python scripts/bootstrap-libraries.py
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - uses: actions/download-artifact@v4
+        with:
+          name: verso-engine
+          path: ${{ env.VERSO_ENGINE_DIR }}
+      - name: Install app dependencies
+        run: npm ci
+      - name: Build portable executable
+        id: build
+        run: npm run desktop:build
+      - name: Upload portable executable
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: verso-${{ matrix.platform }}-x64
+          path: release/verso-${{ matrix.platform }}-x64/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Install Tauri WebDriver bridge
+        run: cargo install tauri-driver --locked
+      - name: Match Windows WebView2 driver
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/install-edge-driver.ps1
+      - name: Native Linux WebView test
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:desktop
+      - name: Native Windows WebView test
+        if: runner.os == 'Windows'
+        run: npm run test:desktop
+      - name: Upload native reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verso-native-report-${{ matrix.platform }}
+          path: artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
