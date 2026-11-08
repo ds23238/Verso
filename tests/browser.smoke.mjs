@@ -18,6 +18,14 @@ try{
  const ready=()=>page.waitForFunction(()=>document.querySelector('.status-row [role=status]')?.textContent==='Konvertierung bereit');
  await page.goto(origin);await page.getByLabel('Zum Ausprobieren').selectOption('elrc');await ready();
  assert((await page.getByRole('textbox',{name:'Ergebnis',exact:true}).inputValue()).includes('words:'));
+ for (const label of ['Eingabe','Ergebnis']) {
+  const editor=page.getByRole('textbox',{name:label,exact:true});
+  await editor.focus();
+  assert.equal(await editor.evaluate(element=>getComputedStyle(element).outlineStyle),'none');
+ }
+ await page.getByRole('textbox',{name:'Eingabe',exact:true}).focus();
+ await page.screenshot({path:'artifacts/editor-focus.png',fullPage:true});
+
  assert.equal(await page.locator('img').count(),0);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.screenshot({path:'artifacts/desktop.png',fullPage:true});
