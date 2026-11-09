@@ -67,6 +67,7 @@ jobs:
           python scripts/audio-fixtures.py
           cargo test --locked --manifest-path audio-core/Cargo.toml
           npm run audio:build
+          cp -R ../work/audio-fixtures "$RUNNER_TEMP/verso-audio-fixtures"
       - name: Build and test the application
         run: |
           npm run build
@@ -84,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: verso-audio-fixtures
-          path: ../work/audio-fixtures/
+          path: ${{ runner.temp }}/verso-audio-fixtures/
           if-no-files-found: error
           retention-days: 14
       - name: Upload statically hostable application
