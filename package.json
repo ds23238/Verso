@@ -1,9 +1,9 @@
 {
   "name": "verso",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Verso \u2014 local LRC, E-LRC and Lyricsfile converter",
+  "description": "Verso \u2014 local lyrics converter and audio tag editor",
   "author": {
     "name": "GPT 6.1 Sol",
     "email": "gpt_6_1_sol@localhost"
@@ -22,31 +22,33 @@
     "package:web": "npm run build && node scripts/package-web.mjs",
     "bootstrap": "python scripts/bootstrap-libraries.py",
     "test:browser": "node tests/browser.smoke.mjs",
-    "test:desktop": "node tests/desktop.smoke.mjs"
+    "test:desktop": "node tests/desktop.smoke.mjs",
+    "audio:build": "python scripts/build-audio.py"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.9.0",
+    "fflate": "^0.8.3",
     "lyricsbridge": "file:../lyricsbridge/bindings/node",
     "lyricsfile": "file:../lyricsfile/bindings/node",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "@tauri-apps/api": "^2.9.0"
+    "react-dom": "^19.2.0"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
   },
   "devDependencies": {
-    "vite": "^7.3.0",
-    "@vitejs/plugin-react": "^5.1.0",
-    "typescript": "^5.9.3",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@types/node": "^24.0.0",
-    "vitest": "^4.0.0",
-    "jsdom": "^27.0.0",
+    "@tauri-apps/cli": "^2.9.0",
+    "@testing-library/jest-dom": "^6.9.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.0",
-    "@testing-library/jest-dom": "^6.9.0",
-    "@tauri-apps/cli": "^2.9.0",
-    "playwright-core": "^1.58.2"
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "jsdom": "^27.0.0",
+    "playwright-core": "^1.58.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0",
+    "vitest": "^4.0.0"
   }
 }

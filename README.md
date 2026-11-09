@@ -10,7 +10,9 @@ Autor: GPT 6.1 Sol <gpt_6_1_sol@localhost>.
 - LRC/E-LRC ↔ Lyricsfile über die gemeinsamen Rust-/WASM-Bibliotheken im Worker.
 - Aktuelle Ausgabe kopieren und als neue UTF-8-Datei exportieren.
 - Konkrete Hinweise zu Informationsverlust, explizite Offset-Entscheidung.
-- Timing-Vorschau mit Zeitcursor und vorhandenen Wort-/Zeilenmarken; ohne Audio.
+- Text-Timing-Vorschau sowie Audio-Arbeitsbereich mit echter Wiedergabe, Seek, Tempo, Wortmarkierung und optionaler Wellenform.
+- MP3, FLAC und M4A/AAC lokal lesen; Track-Tags, einzelne Cover und Lyrics bearbeiten.
+- Geprüfte Audio-Kopie ohne Neukodierung; Lyricsfile und LRC/E-LRC als Sidecars.
 - Responsive Tabs, Keyboard-Bedienung, aktuelle Exporte gegen veraltete Ergebnisse gesperrt.
 - Tauri-Hülle mit nativen Dateiöffnen-/Speichern-Dialogen und portablem Buildpfad.
 
@@ -46,6 +48,7 @@ bauen (Rust-Target wasm32-unknown-unknown, wasm-bindgen-CLI passend zu Cargo.loc
 python scripts/bootstrap-libraries.py
 npm ci
 npm run engine:build
+npm run audio:build
 npm run dev
 ```
 
@@ -119,3 +122,59 @@ Batch-Verarbeitung, Audio-Dateien, Installer und persistente Entwürfe bleiben s
 Diese Entwürfe beschreiben FLAC-/MP3-/M4A-Metadaten, Lyrics-Quellen, echte
 Audiowiedergabe und gezieltes Zurückschreiben. Die Audiofunktionen sind noch
 nicht implementiert.
+
+## Audio-Arbeitsbereich (0.2)
+
+Im Modus **Audio-Datei** eine MP3-, FLAC- oder M4A/AAC-Datei öffnen oder ablegen.
+Track-Tags enthalten auch die Cover-Verwaltung: mehrere Bildeinträge auswählen,
+einzeln ersetzen, exportieren, hinzufügen oder entfernen. PNG/JPEG bis 8 MiB und
+16 Millionen Pixel werden importiert. Andere vorhandene Bilder bleiben erhalten.
+Weitere allgemeine Text-Tags können unter „Weitere Tags“ einzeln bearbeitet werden;
+unbekannte formatbezogene Felder und binäre Daten bleiben erhalten.
+
+Eingebettete Plain-Lyrics (USLT, Vorbis LYRICS/UNSYNCEDLYRICS, MP4 ©lyr),
+LRC-Inhalte dieser Felder, SYLT mit Millisekunden und freie Felder mit „lyricsfile“
+im Namen werden als getrennte Quellen angeboten. Bei M4A betrifft Letzteres
+freie Text-Atoms. Zusätzlich lassen sich LRC-/Lyricsfile-/Text-Sidecars ausdrücklich
+öffnen; der Browser sucht keine Nachbardateien. Jede Quelle behält ihren Entwurf.
+Konvertierte Ansichten sind schreibgeschützt und lassen sich als eigener Entwurf
+übernehmen. Lyrics-Metadaten werden nur auf Wunsch an Track-Tags angeglichen.
+
+Die Timing-Vorschau verwendet die tatsächliche Audiozeit. Tempo, Lautstärke,
+Seek, Zeitausschnitt, Cue-Navigation und Wortmarkierung ändern keine Exportzeiten.
+Die optionale Wellenform wird lokal aus PCM berechnet, bei höchstens 10 Minuten
+Spieldauer. Die Wiedergabe hängt von den vorhandenen System-/Browser-Codecs ab;
+ein Wiedergabefehler verhindert die Tag-Bearbeitung nicht.
+
+Beim Export zeigt eine Prüfung Änderungen und gewählte Sidecars an. Audio wird
+als neue `.verso`-Kopie erzeugt. Mehrere Ausgaben liegen in einem ZIP zusammen,
+mit passendem gemeinsamen Dateistamm. Im Desktop wählt man dafür einen neuen
+Zielpfad; vorhandene Dateien werden nicht überschrieben. Die Audio-Kopie enthält
+Tag-/Cover-Änderungen und optional Plain-Lyrics aus dem ausgewählten Entwurf.
+Plain-Embedding ersetzt nur den ersten Standard-Lyrics-Eintrag der primären Tags;
+weitere Sprach-/Beschreibungsvarianten bleiben erhalten. SYLT bleibt unverändert.
+Lyricsfile wird als Sidecar geschrieben, da kein standardisiertes Audio-Tag existiert.
+
+Der gemeinsame Rust-/WASM-Kern läuft im Worker in Web und Desktop. **Audio ist
+in dieser Version auf 64 MiB begrenzt**, weil beide Varianten im Arbeitsspeicher
+arbeiten. Eine native Streaming-Variante für größere Dateien ist noch nicht umgesetzt.
+Nach dem Schreiben prüft der Kern komprimierte Audio-Payloads (MPEG/FLAC-Frames
+bzw. MP4-mdat), allgemeine Tags, Bilder und freie Text-/Binärfelder erneut. Bei
+Abweichungen bricht der Export ab. Die Containerstruktur und Tag-Repräsentation
+können sich ändern; Audio wird nicht neu kodiert. MP4 ist auf AAC eingeschränkt.
+MPEG-Frame-basierte SYLT-Zeiten bleiben erhalten, werden jedoch nicht interpretiert.
+
+Audio-Tests (temporäre synthetische Dateien außerhalb des Repos, ffmpeg erforderlich):
+
+```sh
+python scripts/audio-fixtures.py
+cargo test --locked --manifest-path audio-core/Cargo.toml
+npm run audio:build
+npm run build
+npm test
+```
+
+Actions führt außerdem die Audio-Oberfläche in echtem Chromium aus, prüft
+Audio-Wiedergabe, Cover und heruntergeladene Audio-/Sidecar-Ausgaben und erzeugt
+Screenshots. `docs/AUDIO_V2_PLAN.md` bleibt der ursprüngliche Entwurf; diese
+README beschreibt den implementierten Umfang und seine Grenzen.

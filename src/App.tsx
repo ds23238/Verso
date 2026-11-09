@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "./Editor";
+import AudioWorkspace from "./audio/AudioWorkspace";
 import Preview from "./Preview";
 import { useConversion } from "./conversion/useConversion";
 import {
@@ -24,6 +25,8 @@ interface Draft {
   name: string;
 }
 export default function App() {
+  const [mode, setMode] = useState("text");
+  const [audioVisited, setAudioVisited] = useState(false);
   const [source, setSource] = useState("");
   const [format, setFormat] = useState<SourceFormat>("auto");
   const [target, setTarget] = useState<TargetFormat>("lyricsfile");
@@ -218,11 +221,28 @@ export default function App() {
             setFileError("Bitte genau eine Datei öffnen.");
             return;
           }
-          void read(event.dataTransfer.files[0]);
+          if (mode === "text") void read(event.dataTransfer.files[0]);
         }}
       >
         <header>
           <span className="wordmark">verso</span>
+          <nav className="workspace-modes" aria-label="Verso Arbeitsmodus">
+            <button
+              aria-pressed={mode === "text"}
+              onClick={() => setMode("text")}
+            >
+              Text konvertieren
+            </button>
+            <button
+              aria-pressed={mode === "audio"}
+              onClick={() => {
+                setMode("audio");
+                setAudioVisited(true);
+              }}
+            >
+              Audio-Datei
+            </button>
+          </nav>
           <div className="header-right">
             <span className="local-badge">
               <span />
@@ -245,7 +265,7 @@ export default function App() {
             </button>
           </div>
         </header>
-        <main id="workspace" ref={main}>
+        <main id="workspace" ref={main} hidden={mode !== "text"}>
           <div className="intro">
             <div>
               <p className="eyebrow">DEIN TEXT. DEIN FORMAT.</p>
@@ -549,7 +569,12 @@ export default function App() {
             <span>Dateien bleiben auf deinem Gerät.</span>
           </footer>
         </main>
-        {dragging && (
+        {audioVisited && (
+          <div hidden={mode !== "audio"}>
+            <AudioWorkspace />
+          </div>
+        )}
+        {dragging && mode === "text" && (
           <div className="drop-overlay" aria-hidden="true">
             <div>
               Datei zum Öffnen ablegen

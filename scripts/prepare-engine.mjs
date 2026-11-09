@@ -4,7 +4,10 @@ import { resolve, sep } from "node:path";
 const root = new URL("../", import.meta.url);
 for (const name of ["lyricsfile", "lyricsbridge"]) {
   const source = process.env.VERSO_ENGINE_DIR
-    ? new URL(`${name}/`, pathToFileURL(resolve(process.env.VERSO_ENGINE_DIR) + sep))
+    ? new URL(
+        `${name}/`,
+        pathToFileURL(resolve(process.env.VERSO_ENGINE_DIR) + sep),
+      )
     : new URL(`../${name}/bindings/node/`, root);
   try {
     await access(new URL(`web/wasm/${name}_bg.wasm`, source));
@@ -20,4 +23,13 @@ for (const name of ["lyricsfile", "lyricsbridge"]) {
       recursive: true,
     });
   console.log("Prepared", name, fileURLToPath(target));
+}
+
+if (process.env.VERSO_ENGINE_DIR) {
+  const source = resolve(process.env.VERSO_ENGINE_DIR, "audio");
+  await cp(source, new URL("public/engine/audio/", root), { recursive: true });
+} else {
+  await access(new URL("public/engine/audio/audio_bg.wasm", root)).catch(() => {
+    throw new Error("Audio-WASM fehlt. Zuerst npm run audio:build ausführen.");
+  });
 }
