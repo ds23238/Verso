@@ -208,15 +208,13 @@ try {
         type: "text/plain",
       }),
     );
-    document
-      .querySelector(".app-shell")
-      .dispatchEvent(
-        new DragEvent("drop", {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer: data,
-        }),
-      );
+    document.querySelector(".app-shell").dispatchEvent(
+      new DragEvent("drop", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: data,
+      }),
+    );
   });
   await ready();
   assert.equal(
@@ -288,8 +286,20 @@ try {
       .getByRole("button", { name: "Speichern unter…", exact: true })
       .click();
     await page
+      .getByRole("button", { name: "LRC + Lyricsfile einbetten", exact: true })
+      .click();
+    const tagMode = ext === "flac" ? "elrc" : ext === "m4a" ? "plain" : "lrc";
+    await page
+      .getByLabel("Format im Lyrics-Tag", { exact: true })
+      .selectOption(tagMode);
+    await page.screenshot({
+      path: "artifacts/audio-export-" + ext + ".png",
+      fullPage: true,
+    });
+
+    await page
       .getByRole("checkbox", {
-        name: "Plain-Lyrics aus dem ausgewählten Entwurf einbetten",
+        name: "Lyrics ins Standardfeld einbetten",
       })
       .check();
     await page
@@ -321,11 +331,17 @@ try {
       ),
     );
     assert.equal(inspected.covers.length, 1);
-    assert(
-      inspected.tags.some(
-        (t) => /Lyrics$/.test(t.key) && t.text.includes("Hallo Welt"),
-      ),
-    );
+    const stored = inspected.tags.find((t) => /Lyrics$/.test(t.key))?.text;
+    assert(stored?.includes("Hallo"));
+    if (tagMode === "plain") assert(!stored.includes("[00:00.500]"));
+    else {
+      assert(stored.includes("[00:00.500]"));
+      assert.equal(stored.includes("<00:00.500>"), tagMode === "elrc");
+    }
+    const full = inspected.sources.find((s) => s.label.includes("LYRICSFILE"));
+    assert(full?.text.includes("words:"));
+    assert(!full.label.includes("com.verso"));
+    if (ext === "m4a") assert(full.label.startsWith("com.apple.iTunes:"));
     if (ext === "mp3") {
       await page
         .getByRole("button", { name: "Abspielen", exact: true })
@@ -365,20 +381,72 @@ try {
       });
       await page.setViewportSize({ width: 1440, height: 1100 });
     }
+    // Reopen dual-tag exports and do a normal tag-only save: both lyrics fields must survive.
+    await page
+      .getByLabel("Audio-Datei öffnen", { exact: true })
+      .setInputFiles({
+        name: "dual." + ext,
+        mimeType: "application/octet-stream",
+        buffer: Buffer.from(files["track.verso." + ext]),
+      });
+    await page.waitForFunction(() =>
+      document.querySelector(".track-summary")?.textContent.includes("dual."),
+    );
+    await page
+      .getByLabel("Lyrics-Quelle", { exact: true })
+      .selectOption("embedded:0");
+    await page.waitForFunction(() =>
+      document
+        .querySelector(".audio-diagnostics")
+        ?.textContent.includes("Wortzeiten"),
+    );
+    assert(
+      (
+        await page
+          .getByRole("textbox", { name: "Audio-Lyrics-Text", exact: true })
+          .inputValue()
+      ).includes("words:"),
+    );
+    await page
+      .getByLabel("Track Titel", { exact: true })
+      .fill("Zweiter Durchlauf");
+    await page
+      .getByRole("button", { name: "Speichern unter…", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Nur Track-Tags", exact: true })
+      .click();
+    const secondDownload = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Geprüfte Kopie exportieren" })
+      .click();
+    const second = await secondDownload;
+    const secondInfo = await page.evaluate(
+      async (bytes) => {
+        const m = await import("/engine/audio/audio.js");
+        await m.default();
+        return JSON.parse(m.inspect(Uint8Array.from(bytes)));
+      },
+      Array.from(await readFile(await second.path())),
+    );
+    assert(
+      secondInfo.sources.some(
+        (s) => s.label.includes("LYRICSFILE") && s.text === full.text,
+      ),
+    );
+    assert(secondInfo.tags.some((t) => t.text === stored));
   }
   // Failed imports leave the previous file and drafts intact.
-  await page
-    .getByLabel("Audio-Datei öffnen", { exact: true })
-    .setInputFiles({
-      name: "broken.mp3",
-      mimeType: "audio/mpeg",
-      buffer: Buffer.from("broken"),
-    });
+  await page.getByLabel("Audio-Datei öffnen", { exact: true }).setInputFiles({
+    name: "broken.mp3",
+    mimeType: "audio/mpeg",
+    buffer: Buffer.from("broken"),
+  });
   await page.waitForFunction(() =>
     document.querySelector(".audio-workspace [role=alert]"),
   );
   assert(
-    (await page.locator(".track-summary").textContent()).includes("track.m4a"),
+    (await page.locator(".track-summary").textContent()).includes("dual.m4a"),
   );
   assert.deepEqual(errors, []);
   assert.deepEqual(external, []);

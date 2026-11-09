@@ -182,3 +182,131 @@ fn clear_a_tag_and_add_numeric_fields() {
             .any(|t| t.key == "TrackNumber" && t.text.as_deref() == Some("1")));
     }
 }
+#[test]
+fn lrc_and_neutral_lyricsfile_coexist_and_replace_independently() {
+    let yaml =
+        "version: '1.0'\nmetadata:\n  title: Abendlicht\n  artist: Verso Test\nplain: Grüß dich\n";
+    let lrc = "[ti:Abendlicht]\n[ar:Verso Test]\n[00:00.500]Grüß dich";
+    for ext in ["mp3", "flac", "m4a"] {
+        let bytes = std::fs::read(fixtures().join(format!("track.{ext}"))).unwrap();
+        let before = inspect_bytes(&bytes).unwrap();
+        let patch =
+            serde_json::from_value(serde_json::json!({"plain":lrc,"lyricsfile":yaml})).unwrap();
+        let out = edit_bytes(&bytes, patch).unwrap_or_else(|e| panic!("{ext}: {e}"));
+        let info = inspect_bytes(&out).unwrap();
+        assert_eq!(before.payload_sha256, info.payload_sha256);
+        assert!(info.tags.iter().any(|t| t.text.as_deref() == Some(lrc)));
+        let source = info.sources.iter().find(|s| s.text == yaml).unwrap();
+        assert!(source.label.contains("LYRICSFILE"));
+        assert!(!source.label.contains("com.verso"));
+        if ext == "m4a" {
+            assert!(source.label.starts_with("com.apple.iTunes:"));
+        }
+        let updated = yaml.replace("Grüß dich", "Zweite Version");
+        let again = edit_bytes(
+            &out,
+            serde_json::from_value(serde_json::json!({"lyricsfile":updated})).unwrap(),
+        )
+        .unwrap();
+        let info = inspect_bytes(&again).unwrap();
+        assert!(info.tags.iter().any(|t| t.text.as_deref() == Some(lrc)));
+        assert_eq!(
+            info.sources
+                .iter()
+                .filter(|s| s.label.contains("LYRICSFILE"))
+                .count(),
+            1
+        );
+        assert!(info.sources.iter().any(|s| s.text == updated));
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join(format!("coexist.{ext}"));
+        std::fs::write(&file, again).unwrap();
+        assert!(Command::new("ffmpeg")
+            .args(["-v", "error", "-xerror", "-i"])
+            .arg(file)
+            .args(["-f", "null", "-"])
+            .status()
+            .unwrap()
+            .success());
+    }
+}
+#[test]
+fn selected_lyrics_variant_survives_preceding_tag_removal() {
+    use lofty::{
+        config::{ParseOptions, WriteOptions},
+        file::AudioFile,
+        id3::v2::{Frame, UnsynchronizedTextFrame},
+        TextEncoding,
+    };
+    use std::io::Cursor;
+    let bytes = std::fs::read(fixtures().join("track.mp3")).unwrap();
+    let mut f = lofty::mpeg::MpegFile::read_from(&mut Cursor::new(&bytes), ParseOptions::default())
+        .unwrap();
+    f.id3v2_mut()
+        .unwrap()
+        .insert(Frame::UnsynchronizedText(UnsynchronizedTextFrame::new(
+            TextEncoding::UTF8,
+            *b"deu",
+            "Alternative",
+            "Deutsch erhalten",
+        )));
+    let mut c = Cursor::new(bytes);
+    f.save_to(&mut c, WriteOptions::default()).unwrap();
+    let bytes = c.into_inner();
+    let before = inspect_bytes(&bytes).unwrap();
+    let target = &before
+        .tags
+        .iter()
+        .find(|t| t.description == "Alternative" && t.language == "deu")
+        .unwrap()
+        .id;
+    let title = &before
+        .tags
+        .iter()
+        .find(|t| t.key == "TrackTitle")
+        .unwrap()
+        .id;
+    let patch=serde_json::from_value(serde_json::json!({"lyrics_target":target,"plain":"[00:01.000]Gezielt ersetzt","fields":[{"id":title,"value":null}]})).unwrap();
+    let out = edit_bytes(&bytes, patch).unwrap();
+    let after = inspect_bytes(&out).unwrap();
+    assert!(after.tags.iter().any(|t| t.description == "Alternative"
+        && t.language == "deu"
+        && t.text.as_deref() == Some("[00:01.000]Gezielt ersetzt")));
+    assert!(after
+        .tags
+        .iter()
+        .any(|t| t.text.as_deref() == Some("[00:00.500]Hallo Welt\n[00:02.000]Eine zweite Zeile")));
+}
+#[test]
+fn multiple_lyricsfile_variants_are_not_collapsed() {
+    use lofty::{
+        config::{ParseOptions, WriteOptions},
+        file::AudioFile,
+    };
+    use std::io::Cursor;
+    let bytes = std::fs::read(fixtures().join("track.flac")).unwrap();
+    let mut f = lofty::flac::FlacFile::read_from(&mut Cursor::new(&bytes), ParseOptions::default())
+        .unwrap();
+    let tag = f.vorbis_comments_mut().unwrap();
+    tag.push("LYRICSFILE".into(), "Version eins".into());
+    tag.push("LYRICSFILE".into(), "Version zwei".into());
+    tag.push("X_OTHER_APP".into(), "Unverändert".into());
+    let mut c = Cursor::new(bytes);
+    f.save_to(&mut c, WriteOptions::default()).unwrap();
+    let input = c.into_inner();
+    let patch = serde_json::from_value(serde_json::json!({"lyricsfile":"Neue Version"})).unwrap();
+    assert!(edit_bytes(&input, patch)
+        .unwrap_err()
+        .contains("Mehrere LYRICSFILE"));
+    let out = edit_bytes(
+        &input,
+        serde_json::from_value(serde_json::json!({"fields":[{"id":"@Genre","value":"Test"}]}))
+            .unwrap(),
+    )
+    .unwrap();
+    let after =
+        lofty::flac::FlacFile::read_from(&mut Cursor::new(out), ParseOptions::default()).unwrap();
+    let tag = after.vorbis_comments().unwrap();
+    assert_eq!(tag.get_all("LYRICSFILE").count(), 2);
+    assert_eq!(tag.get("X_OTHER_APP"), Some("Unverändert"));
+}

@@ -48,6 +48,11 @@ export default function AudioWorkspace() {
   const [offset, setOffset] = useState<"reject" | "apply" | "ignore">("reject");
   const [review, setReview] = useState(false);
   const [embed, setEmbed] = useState(false);
+  const [embedFormat, setEmbedFormat] = useState<"plain" | "lrc" | "elrc">(
+    "lrc",
+  );
+  const [embedTarget, setEmbedTarget] = useState("");
+  const [embedLf, setEmbedLf] = useState(false);
   const [sideLf, setSideLf] = useState(true);
   const [sideLrc, setSideLrc] = useState(false);
   const [enhanced, setEnhanced] = useState(true);
@@ -90,6 +95,16 @@ export default function AudioWorkspace() {
         target: enhanced ? ("elrc" as const) : ("lrc" as const),
       }),
       [request, enhanced],
+    ),
+    0,
+  );
+  const standard = useConversion(
+    useMemo(
+      () => ({
+        ...request,
+        target: embedFormat === "elrc" ? ("elrc" as const) : ("lrc" as const),
+      }),
+      [request, embedFormat],
     ),
     0,
   );
@@ -197,19 +212,25 @@ export default function AudioWorkspace() {
       setView("source");
       setOffset("reject");
       setEmbed(false);
+      setEmbedLf(false);
+      setEmbedFormat("lrc");
+      setEmbedTarget("");
       setAlign(false);
       const embedded: Source[] = result.tags
         .filter((t) => lyricKey(t.key) && t.text !== null)
         .map((t) => ({
           id: t.id,
-          label: `Eingebettet · ${t.key} · ${t.language} ${t.description}`,
+          label: `In Datei · ${/\[\d+:\d+/.test(t.text!) ? "LRC / E-LRC" : "Lyrics"} · ${t.language.toLowerCase() === "xxx" ? "ohne Sprachangabe" : t.language}${t.description ? " · " + t.description : ""}`,
           text: t.text!,
           original: t.text!,
           format: "auto" as const,
         }));
       const extras = result.sources.map((s, i) => ({
         id: "embedded:" + i,
-        label: s.label,
+        label:
+          "In Datei · " +
+          (s.format === "lyricsfile" ? "Lyricsfile · " : "") +
+          s.label,
         text: s.text,
         original: s.text,
         format:
@@ -337,7 +358,16 @@ export default function AudioWorkspace() {
       };
       if (embed) {
         if (!canExport) throw Error("Bitte zuerst die Lyrics prüfen.");
-        patch.plain = plain;
+        if (embedFormat !== "plain" && !standard.current)
+          throw Error(
+            "Bitte die Konvertierung für das Lyrics-Feld abschließen.",
+          );
+        patch.plain = embedFormat === "plain" ? plain : standard.result!.output;
+        if (embedTarget) patch.lyrics_target = embedTarget;
+      }
+      if (embedLf) {
+        if (!lf.current) throw Error("Bitte Lyricsfile zuerst prüfen.");
+        patch.lyricsfile = lf.result!.output;
       }
       if ((sideLf && !lf.current) || (sideLrc && !lrc.current))
         throw Error("Bitte zuerst die Lyrics-Konvertierung abschließen.");
@@ -807,56 +837,193 @@ export default function AudioWorkspace() {
                 {covers.length} Bildänderungen
               </p>
             </div>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={embed}
-                disabled={!canExport}
-                onChange={(e) => setEmbed(e.target.checked)}
-              />{" "}
-              Plain-Lyrics aus dem ausgewählten Entwurf einbetten
-            </label>
-            <p className="subtle">
-              Ersetzt das Standard-Plain-Lyrics-Feld der primären Tags. Ersetzt
-              nur den ersten passenden Eintrag; weitere Sprachen und
-              Beschreibungen bleiben erhalten. Vorhandenes SYLT bleibt erhalten.
+            <p className="export-source">
+              <span className="eyebrow">LYRICS-QUELLE</span>
+              <strong>{source?.label}</strong>
+              <span>
+                {align
+                  ? "Lyrics-Metadaten werden an Track-Tags angeglichen."
+                  : "Vorhandene Lyrics-Metadaten bleiben erhalten."}
+              </span>
             </p>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={sideLf}
-                disabled={!canExport}
-                onChange={(e) => setSideLf(e.target.checked)}
-              />{" "}
-              Lyricsfile als Begleitdatei
-            </label>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={sideLrc}
-                disabled={!canExport}
-                onChange={(e) => setSideLrc(e.target.checked)}
-              />{" "}
-              LRC als Begleitdatei
-            </label>
-            <label className="check-row">
-              <input
-                type="checkbox"
-                checked={enhanced}
-                onChange={(e) => setEnhanced(e.target.checked)}
-              />{" "}
-              Vorhandene Wortzeiten als E-LRC erhalten
-            </label>
-            {sideLrc &&
-              lrc.result?.warnings.map((w, i) => (
-                <p className="audio-notice" key={i}>
-                  {w}
+            <div className="export-presets" aria-label="Export-Vorlagen">
+              <button
+                disabled={busy}
+                onClick={() => {
+                  setEmbed(false);
+                  setEmbedLf(false);
+                  setSideLf(false);
+                  setSideLrc(false);
+                }}
+              >
+                Nur Track-Tags
+              </button>
+              <button
+                disabled={busy || !canExport}
+                onClick={() => {
+                  setEmbed(true);
+                  setEmbedFormat("lrc");
+                  setEmbedLf(true);
+                  setSideLf(false);
+                  setSideLrc(false);
+                }}
+              >
+                LRC + Lyricsfile einbetten
+              </button>
+              <button
+                disabled={busy || !canExport}
+                onClick={() => {
+                  setEmbed(false);
+                  setEmbedLf(false);
+                  setSideLf(true);
+                  setSideLrc(true);
+                }}
+              >
+                Lyrics als Begleitdateien
+              </button>
+            </div>
+            <fieldset className="export-group">
+              <legend>In der Audiodatei</legend>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={embed}
+                  disabled={busy}
+                  onChange={(e) => setEmbed(e.target.checked)}
+                />{" "}
+                Lyrics ins Standardfeld einbetten
+              </label>
+              {embed ? (
+                <div className="export-options">
+                  <label>
+                    Inhalt des Lyrics-Felds
+                    <select
+                      aria-label="Format im Lyrics-Tag"
+                      value={embedFormat}
+                      onChange={(e) =>
+                        setEmbedFormat(e.target.value as typeof embedFormat)
+                      }
+                      disabled={busy}
+                    >
+                      <option value="plain">Plain · ohne Zeitmarken</option>
+                      <option value="lrc">LRC · Zeilenzeiten</option>
+                      <option value="elrc">
+                        E-LRC · vorhandene Wortzeiten
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    Zieleintrag
+                    <select
+                      aria-label="Lyrics-Zieleintrag"
+                      value={embedTarget}
+                      onChange={(e) => setEmbedTarget(e.target.value)}
+                      disabled={busy}
+                    >
+                      <option value="">
+                        Standardfeld · erster primärer Eintrag oder neu
+                      </option>
+                      {info?.tags
+                        .filter((t) => lyricKey(t.key))
+                        .map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.key} · {t.language} ·{" "}
+                            {t.description || "ohne Beschreibung"} · #{t.id}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <p className="subtle">
+                    Nur der gewählte Eintrag wird ersetzt. Sprache und
+                    Beschreibung sowie weitere Varianten bleiben erhalten. SYLT
+                    bleibt unverändert.
+                  </p>
+                  {embedFormat !== "plain" &&
+                    standard.result?.warnings.map((w, i) => (
+                      <p className="export-warning" key={i}>
+                        {w}
+                      </p>
+                    ))}
+                </div>
+              ) : (
+                <p className="subtle">
+                  Vorhandene Standard-Lyrics bleiben unverändert.
                 </p>
-              ))}
+              )}
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={embedLf}
+                  disabled={busy}
+                  onChange={(e) => setEmbedLf(e.target.checked)}
+                />{" "}
+                Lyricsfile zusätzlich einbetten
+              </label>
+              <p className="subtle">
+                {info?.format === "Mpeg"
+                  ? "TXXX:LYRICSFILE"
+                  : info?.format === "Mp4"
+                    ? "----:com.apple.iTunes:LYRICSFILE"
+                    : "LYRICSFILE"}{" "}
+                · Vollständiges Lyricsfile, unabhängig vom Standard-Lyrics-Feld.
+                Ein vorhandener Eintrag wird ersetzt; mehrere Einträge werden
+                zum Schutz ihrer Varianten nicht überschrieben.
+              </p>
+              {embedLf && (
+                <p className="export-warning">
+                  Das neue Feld ist eine Interoperabilitäts-Empfehlung. Player
+                  müssen Lyricsfile unterstützen; LRC im Standardfeld bleibt der
+                  zusätzliche Fallback.
+                </p>
+              )}
+            </fieldset>
+            <fieldset className="export-group">
+              <legend>Begleitdateien</legend>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={sideLf}
+                  disabled={busy}
+                  onChange={(e) => setSideLf(e.target.checked)}
+                />{" "}
+                Lyricsfile als Begleitdatei
+              </label>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={sideLrc}
+                  disabled={busy}
+                  onChange={(e) => setSideLrc(e.target.checked)}
+                />{" "}
+                LRC als Begleitdatei
+              </label>
+              {sideLrc && (
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={enhanced}
+                    disabled={busy}
+                    onChange={(e) => setEnhanced(e.target.checked)}
+                  />{" "}
+                  Vorhandene Wortzeiten als E-LRC erhalten
+                </label>
+              )}
+              {sideLrc &&
+                lrc.result?.warnings.map((w, i) => (
+                  <p className="export-warning" key={i}>
+                    {w}
+                  </p>
+                ))}
+            </fieldset>
+            {(embed || embedLf || sideLf || sideLrc) && !canExport && (
+              <p className="export-warning" role="status">
+                Die gewählte Lyrics-Quelle ist noch nicht exportbereit. Bitte
+                die Hinweise im Editor prüfen oder nur Track-Tags speichern.
+              </p>
+            )}
             <p className="subtle">
-              Lyricsfile hat kein standardisiertes Audio-Tag und wird als
-              Sidecar gespeichert. Beim Export werden Audio-Hash und
-              geschriebene Tags erneut geprüft.
+              Audio-Hash, Tags, Cover und eingebettetes Lyricsfile werden nach
+              dem Schreiben erneut geprüft. Es werden keine Zeiten erzeugt.
             </p>
             <button
               className="primary"
@@ -864,7 +1031,10 @@ export default function AudioWorkspace() {
                 busy ||
                 (sideLf && !lf.current) ||
                 (sideLrc && !lrc.current) ||
-                (embed && !canExport)
+                (embed &&
+                  (!canExport ||
+                    (embedFormat !== "plain" && !standard.current))) ||
+                (embedLf && !lf.current)
               }
               onClick={() => void save()}
             >
@@ -876,6 +1046,7 @@ export default function AudioWorkspace() {
                 setSideLf(false);
                 setSideLrc(false);
                 setEmbed(false);
+                setEmbedLf(false);
               }}
             >
               Nur Audio-Tags speichern

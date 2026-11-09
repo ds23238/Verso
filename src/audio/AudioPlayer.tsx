@@ -151,11 +151,15 @@ export default function AudioPlayer({
         aria-label="Aktuelle Lyrics"
       >
         <p className="neighbor">{shown > 0 ? lines[shown - 1]?.text : " "}</p>
-        <div className="current-lyric">
+        <div
+          className={`current-lyric ${!lines.length && doc?.plain ? "plain-lyric" : ""}`}
+        >
           {stale
             ? "Lyrics werden aktualisiert…"
             : current < 0
-              ? "♪"
+              ? !lines.length && doc?.plain
+                ? doc.plain
+                : "♪"
               : lines[current].words?.length
                 ? lines[current].words!.map((w, i) => (
                     <span
@@ -180,7 +184,9 @@ export default function AudioPlayer({
           {lines[current < 0 ? shown : shown + 1]?.text ??
             (lines.length
               ? " "
-              : "Öffne Lyrics oder eine Begleitdatei für die synchrone Vorschau.")}
+              : doc?.plain
+                ? "Plain-Lyrics ohne Zeitmarken · keine synchrone Hervorhebung"
+                : "Öffne Lyrics oder eine Begleitdatei für die synchrone Vorschau.")}
         </p>
       </div>
       <div className="transport">

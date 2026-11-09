@@ -27,7 +27,9 @@ export interface AudioInfo {
 export interface Patch {
   fields: { id: string; value: string | null }[];
   covers: { id?: string; data?: string }[];
+  /** Contents of the standard lyrics field: plain text, LRC or E-LRC. */
   plain?: string;
+  lyrics_target?: string;
   lyricsfile?: string;
 }
 export const AUDIO_LIMIT = 64 * 1024 * 1024;

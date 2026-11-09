@@ -130,6 +130,44 @@ try {
     `artifacts/native-audio-${process.platform}.png`,
     Buffer.from(nativeAudioImage, "base64"),
   );
+  await until(() =>
+    execute(
+      "return document.querySelector('.audio-diagnostics')?.textContent.includes('Zeilen')",
+    ),
+  );
+  await execute(
+    "Array.from(document.querySelectorAll('button')).find(b=>b.textContent==='Speichern unter…').click();",
+  );
+  await until(() =>
+    execute("return !!document.querySelector('.audio-save-dialog')"),
+  );
+  await execute(
+    "Array.from(document.querySelectorAll('.audio-save-dialog button')).find(b=>b.textContent==='LRC + Lyricsfile einbetten').click();",
+  );
+  assert.equal(
+    await execute(
+      "return document.querySelector('select[aria-label=\"Format im Lyrics-Tag\"]').value",
+    ),
+    "lrc",
+  );
+  assert.equal(
+    await execute(
+      "return Array.from(document.querySelectorAll('.audio-save-dialog input[type=checkbox]')).filter(i=>i.checked).length",
+    ),
+    2,
+  );
+  const nativeExportImage = await call(
+    `/session/${session}/screenshot`,
+    undefined,
+    "GET",
+  );
+  await writeFile(
+    `artifacts/native-export-${process.platform}.png`,
+    Buffer.from(nativeExportImage, "base64"),
+  );
+  await execute(
+    "Array.from(document.querySelectorAll('.audio-save-dialog button')).find(b=>b.textContent==='Schließen').click();",
+  );
   await writeFile(
     `artifacts/native-${process.platform}.json`,
     JSON.stringify(
@@ -145,6 +183,7 @@ try {
           "audio-worker-under-csp",
           "audio-tags",
           "cover-import",
+          "dual-tag-export-settings",
         ],
         nativeDialogs: "not automated",
       },

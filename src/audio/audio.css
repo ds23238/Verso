@@ -537,3 +537,121 @@ main[hidden] {
     height: 85px;
   }
 }
+
+.export-source {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 18px 0;
+  overflow-wrap: anywhere;
+}
+.export-source > span:last-child {
+  font-size: 12px;
+  color: var(--muted);
+}
+.export-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 24px;
+}
+.export-presets button {
+  font-size: 12px;
+  padding: 8px 11px;
+}
+.export-group {
+  margin: 20px 0;
+  padding: 4px 20px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 0;
+}
+.export-group legend {
+  padding: 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.export-group .subtle {
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.export-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 0 0 4px 26px;
+}
+.export-options label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.export-options select {
+  max-width: 100%;
+  width: 100%;
+}
+.export-options > p {
+  margin: 0;
+}
+.export-warning {
+  background: var(--warning);
+  color: var(--warning-ink);
+  font-size: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+.audio-save-dialog {
+  width: min(780px, 100%);
+}
+@media (max-width: 700px) {
+  .export-group {
+    padding: 6px 12px 14px;
+  }
+  .export-options {
+    padding-left: 0;
+  }
+  .export-presets button {
+    flex: 1 1 100%;
+  }
+}
+
+.track-tags {
+  container-type: inline-size;
+}
+.cover-editor {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+}
+.cover-art {
+  width: 104px;
+  height: 104px;
+}
+.cover-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cover-buttons button {
+  padding: 7px 5px;
+  min-height: 34px;
+}
+@container (max-width:320px) {
+  .cover-editor {
+    grid-template-columns: 1fr;
+  }
+  .cover-art {
+    width: 100%;
+    height: 150px;
+  }
+}
+.current-lyric.plain-lyric {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 20px;
+  line-height: 1.7;
+  font-weight: 500;
+}

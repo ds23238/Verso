@@ -5,12 +5,13 @@ use lofty::{
     file::{AudioFile, FileType, TaggedFile, TaggedFileExt},
     picture::{Picture, PictureType},
     probe::Probe,
-    tag::{ItemKey, ItemValue, Tag, TagItem},
+    tag::{ItemKey, ItemValue, Tag, TagExt, TagItem, TagType},
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::io::Cursor;
 use wasm_bindgen::prelude::*;
+mod lyrics_tag;
 const LIMIT: usize = 64 * 1024 * 1024;
 #[derive(Serialize)]
 pub struct Entry {
@@ -54,6 +55,8 @@ pub struct Patch {
     #[serde(default)]
     pub covers: Vec<CoverEdit>,
     pub plain: Option<String>,
+    /// Stable ID of the exact standard lyrics entry to replace; absent means first primary entry.
+    pub lyrics_target: Option<String>,
     pub lyricsfile: Option<String>,
 }
 #[derive(Deserialize)]
@@ -424,6 +427,25 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
             return Err("Unbekannte Tag-ID".into());
         }
     }
+    let lyrics_target = patch.lyrics_target.as_deref().map(parse_id).transpose()?;
+    if let Some((t, i)) = lyrics_target {
+        let target = file
+            .tags()
+            .get(t)
+            .and_then(|tag| tag.items().nth(i))
+            .ok_or("Lyrics-Eintrag fehlt")?;
+        if patch.plain.is_none() || !matches!(target.key(), ItemKey::Lyrics | ItemKey::UnsyncLyrics)
+        {
+            return Err("Ungültiges Standard-Lyrics-Ziel".into());
+        }
+        if patch
+            .fields
+            .iter()
+            .any(|f| Some(f.id.as_str()) == patch.lyrics_target.as_deref())
+        {
+            return Err("Lyrics-Ziel wird doppelt bearbeitet".into());
+        }
+    }
     // Stable IDs refer to the immutable source. Rebuild each tag once, preserving duplicate entries.
     for (t, tag_type) in file
         .tags()
@@ -436,6 +458,16 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
         let tag = file.tag_mut(tag_type).ok_or("Tag fehlt")?;
         let mut items = vec![];
         for (i, item) in tag.items().enumerate() {
+            if lyrics_target == Some((t, i)) {
+                let mut new = TagItem::new(
+                    item.key(),
+                    ItemValue::Text(patch.plain.as_ref().unwrap().clone()),
+                );
+                new.set_lang(*item.lang());
+                new.set_description(item.description().into());
+                items.push(new);
+                continue;
+            }
             if let Some(field) = patch.fields.iter().find(|f| f.id == format!("{t}:{i}")) {
                 if !matches!(item.value(), ItemValue::Text(_) | ItemValue::Locator(_)) {
                     return Err("Binäre Tags sind schreibgeschützt".into());
@@ -465,7 +497,7 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
     if file.primary_tag().is_none() {
         file.insert_tag(Tag::new(primary));
     }
-    if let Some(text) = patch.plain {
+    if let Some(text) = patch.plain.filter(|_| patch.lyrics_target.is_none()) {
         let key = if file.file_type() == FileType::Mpeg {
             ItemKey::UnsyncLyrics
         } else {
@@ -492,9 +524,6 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
         for item in items {
             tag.push_unchecked(item);
         }
-    }
-    if patch.lyricsfile.is_some() {
-        return Err("Lyricsfile bitte als Sidecar speichern; es gibt kein standardisiertes eingebettetes Feld.".into());
     }
     for field in patch.fields.iter().filter(|f| f.id.starts_with('@')) {
         let key = match field.id.as_str() {
@@ -565,8 +594,25 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
     let opaque_before = opaque(bytes, file.file_type())?;
     let expected = signatures(&file);
     let mut output = Cursor::new(bytes.to_vec());
-    file.save_to(&mut output, WriteOptions::default())
-        .map_err(err)?;
+    if file.file_type() == FileType::Flac {
+        // Lofty's borrowed FLAC writer omits unknown Vorbis companion items.
+        // Use its owned merge conversion so LYRICSFILE and other custom comments survive.
+        for tag in file.tags() {
+            output.set_position(0);
+            if tag.tag_type() == TagType::VorbisComments {
+                let comments: lofty::ogg::tag::VorbisComments = tag.clone().into();
+                comments
+                    .save_to(&mut output, WriteOptions::default())
+                    .map_err(err)?;
+            } else {
+                tag.save_to(&mut output, WriteOptions::default())
+                    .map_err(err)?;
+            }
+        }
+    } else {
+        file.save_to(&mut output, WriteOptions::default())
+            .map_err(err)?;
+    }
     let output = output.into_inner();
     let after = read(&output)?;
     if payload(&output, after.file_type())? != before {
@@ -577,6 +623,23 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
     }
     if signatures(&after) != expected {
         return Err("Speichern abgebrochen: Tags oder Bilder haben den Schreib-Lese-Test nicht unverändert bestanden".into());
+    }
+    if let Some(text) = patch.lyricsfile {
+        let kind = after.file_type();
+        let mut opaque_expected = opaque(&output, kind)?;
+        opaque_expected.retain(|entry| !lyrics_tag::canonical_opaque(kind, entry));
+        let output = lyrics_tag::write(output, kind, &text)?;
+        let tagged = read(&output)?;
+        let mut opaque_after = opaque(&output, kind)?;
+        opaque_after.retain(|entry| !lyrics_tag::canonical_opaque(kind, entry));
+        if payload(&output, kind)? != before
+            || signatures(&tagged) != expected
+            || opaque_after != opaque_expected
+            || lyrics_tag::texts(&output, kind)? != vec![text]
+        {
+            return Err("Speichern abgebrochen: Lyricsfile-Einbettung hat die Erhaltungsprüfung nicht bestanden".into());
+        }
+        return Ok(output);
     }
     Ok(output)
 }

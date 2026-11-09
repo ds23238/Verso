@@ -123,7 +123,7 @@ Diese Entwürfe beschreiben FLAC-/MP3-/M4A-Metadaten, Lyrics-Quellen, echte
 Audiowiedergabe und gezieltes Zurückschreiben. Die Audiofunktionen sind noch
 nicht implementiert.
 
-## Audio-Arbeitsbereich (0.2)
+## Audio-Arbeitsbereich (0.3)
 
 Im Modus **Audio-Datei** eine MP3-, FLAC- oder M4A/AAC-Datei öffnen oder ablegen.
 Track-Tags enthalten auch die Cover-Verwaltung: mehrere Bildeinträge auswählen,
@@ -150,10 +150,22 @@ Beim Export zeigt eine Prüfung Änderungen und gewählte Sidecars an. Audio wir
 als neue `.verso`-Kopie erzeugt. Mehrere Ausgaben liegen in einem ZIP zusammen,
 mit passendem gemeinsamen Dateistamm. Im Desktop wählt man dafür einen neuen
 Zielpfad; vorhandene Dateien werden nicht überschrieben. Die Audio-Kopie enthält
-Tag-/Cover-Änderungen und optional Plain-Lyrics aus dem ausgewählten Entwurf.
-Plain-Embedding ersetzt nur den ersten Standard-Lyrics-Eintrag der primären Tags;
-weitere Sprach-/Beschreibungsvarianten bleiben erhalten. SYLT bleibt unverändert.
-Lyricsfile wird als Sidecar geschrieben, da kein standardisiertes Audio-Tag existiert.
+Tag-/Cover-Änderungen und optional Plain, LRC oder E-LRC aus dem ausgewählten
+Entwurf im Standard-Lyrics-Feld. Ein bestimmter Sprach-/Beschreibungs-Eintrag ist
+als Ziel wählbar; ohne Auswahl wird nur der erste primäre Eintrag ersetzt oder
+neu angelegt. Weitere Varianten und SYLT bleiben erhalten.
+Lyricsfile kann unabhängig davon zusätzlich eingebettet werden: FLAC `LYRICSFILE`,
+MP3 `TXXX:LYRICSFILE`, M4A `----:com.apple.iTunes:LYRICSFILE`. Keine neuen
+`com.verso`-Felder. Diese Felder sind eine Interoperabilitäts-Empfehlung, kein
+etablierter Lyricsfile-Tag-Standard; andere Player benötigen entsprechende
+Unterstützung. Ein vorhandener einzelner kanonischer Eintrag wird ersetzt;
+mehrere Einträge führen zum Abbruch, damit keine Variante verloren geht.
+
+Der Exportdialog trennt Audio-Felder und Sidecars, zeigt Quelle und
+Konvertierungsverluste und bietet Vorlagen für Tags allein, LRC plus Lyricsfile
+in derselben Datei oder Sidecars. Begleitdateien bleiben unabhängig wählbar.
+Plain-Lyrics werden auch in der Vorschau als unsynchronisierter Text angezeigt.
+Die kompaktere Cover-Verwaltung passt sich an die verfügbare Kartenbreite an.
 
 Der gemeinsame Rust-/WASM-Kern läuft im Worker in Web und Desktop. **Audio ist
 in dieser Version auf 64 MiB begrenzt**, weil beide Varianten im Arbeitsspeicher
