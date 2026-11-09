@@ -974,7 +974,7 @@ export default function AudioWorkspace() {
                   {info?.format === "Mpeg"
                     ? "TXXX:LYRICSFILE"
                     : info?.format === "Mp4"
-                      ? "----:com.apple.iTunes:LYRICSFILE"
+                      ? "----:org.lyricsfile:LYRICSFILE"
                       : "LYRICSFILE"}{" "}
                   · Vollständiges Lyricsfile, unabhängig vom
                   Standard-Lyrics-Feld. Ein vorhandener Eintrag wird ersetzt;

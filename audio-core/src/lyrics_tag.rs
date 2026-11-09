@@ -7,12 +7,12 @@ use lofty::{
     TextEncoding,
 };
 pub const NAME: &str = "LYRICSFILE";
-pub const MP4_MEAN: &str = "com.apple.iTunes";
+pub const MP4_MEAN: &str = "org.lyricsfile";
 pub fn canonical_opaque(kind: FileType, entry: &str) -> bool {
     let prefix = match kind {
         FileType::Mpeg => "TXXX:LYRICSFILE:",
         FileType::Flac => "LYRICSFILE:",
-        FileType::Mp4 => "----:com.apple.iTunes:LYRICSFILE:",
+        FileType::Mp4 => "----:org.lyricsfile:LYRICSFILE:",
         _ => return false,
     };
     entry

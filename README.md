@@ -155,7 +155,7 @@ Entwurf im Standard-Lyrics-Feld. Ein bestimmter Sprach-/Beschreibungs-Eintrag is
 als Ziel wählbar; ohne Auswahl wird nur der erste primäre Eintrag ersetzt oder
 neu angelegt. Weitere Varianten und SYLT bleiben erhalten.
 Lyricsfile kann unabhängig davon zusätzlich eingebettet werden: FLAC `LYRICSFILE`,
-MP3 `TXXX:LYRICSFILE`, M4A `----:com.apple.iTunes:LYRICSFILE`. Keine neuen
+MP3 `TXXX:LYRICSFILE`, M4A `----:org.lyricsfile:LYRICSFILE`. Keine neuen
 `com.verso`-Felder. Diese Felder sind eine Interoperabilitäts-Empfehlung, kein
 etablierter Lyricsfile-Tag-Standard; andere Player benötigen entsprechende
 Unterstützung. Ein vorhandener einzelner kanonischer Eintrag wird ersetzt;

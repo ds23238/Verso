@@ -352,7 +352,7 @@ try {
     const full = inspected.sources.find((s) => s.label.includes("LYRICSFILE"));
     assert(full?.text.includes("words:"));
     assert(!full.label.includes("com.verso"));
-    if (ext === "m4a") assert(full.label.startsWith("com.apple.iTunes:"));
+    if (ext === "m4a") assert(full.label.startsWith("org.lyricsfile:"));
     if (ext === "mp3") {
       await page
         .getByRole("button", { name: "Abspielen", exact: true })

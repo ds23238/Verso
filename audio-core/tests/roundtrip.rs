@@ -200,7 +200,7 @@ fn lrc_and_neutral_lyricsfile_coexist_and_replace_independently() {
         assert!(source.label.contains("LYRICSFILE"));
         assert!(!source.label.contains("com.verso"));
         if ext == "m4a" {
-            assert!(source.label.starts_with("com.apple.iTunes:"));
+            assert!(source.label.starts_with("org.lyricsfile:"));
         }
         let updated = yaml.replace("Grüß dich", "Zweite Version");
         let again = edit_bytes(
@@ -309,4 +309,61 @@ fn multiple_lyricsfile_variants_are_not_collapsed() {
     let tag = after.vorbis_comments().unwrap();
     assert_eq!(tag.get_all("LYRICSFILE").count(), 2);
     assert_eq!(tag.get("X_OTHER_APP"), Some("Unverändert"));
+}
+#[test]
+fn format_namespace_preserves_legacy_mp4_lyricsfile_fields() {
+    use lofty::{
+        config::{ParseOptions, WriteOptions},
+        file::AudioFile,
+        mp4::{Atom, AtomData, AtomIdent, Mp4File},
+    };
+    use std::io::Cursor;
+    let input = std::fs::read(fixtures().join("track.m4a")).unwrap();
+    let mut file = Mp4File::read_from(&mut Cursor::new(&input), ParseOptions::default()).unwrap();
+    file.ilst_mut().unwrap().insert(Atom::new(
+        AtomIdent::Freeform {
+            mean: "com.apple.iTunes".into(),
+            name: "LYRICSFILE".into(),
+        },
+        AtomData::UTF8("Unveränderter Altbestand".into()),
+    ));
+    let mut cursor = Cursor::new(input);
+    file.save_to(&mut cursor, WriteOptions::default()).unwrap();
+    let input = cursor.into_inner();
+    let before = inspect_bytes(&input).unwrap();
+    let yaml = "version: '1.0'\nmetadata:\n  title: Neuer Namensraum\n  artist: CI\nplain: Text\n";
+    let patch = serde_json::from_value(serde_json::json!({"lyricsfile":yaml})).unwrap();
+    let output = edit_bytes(&input, patch).unwrap();
+    let info = inspect_bytes(&output).unwrap();
+    assert_eq!(info.payload_sha256, before.payload_sha256);
+    assert!(info
+        .sources
+        .iter()
+        .any(|s| s.label == "org.lyricsfile:LYRICSFILE (Erweiterung)" && s.text == yaml));
+    assert!(info
+        .sources
+        .iter()
+        .any(|s| s.label == "com.apple.iTunes:LYRICSFILE (Erweiterung)"
+            && s.text == "Unveränderter Altbestand"));
+    let patch = serde_json::from_value(
+        serde_json::json!({"lyricsfile":yaml.replace("Neuer Namensraum","Aktualisiert")}),
+    )
+    .unwrap();
+    let output = edit_bytes(&output, patch).unwrap();
+    let info = inspect_bytes(&output).unwrap();
+    assert_eq!(
+        info.sources
+            .iter()
+            .filter(|s| s.label.starts_with("org.lyricsfile:"))
+            .count(),
+        1
+    );
+    assert!(info
+        .sources
+        .iter()
+        .any(|s| s.label.starts_with("org.lyricsfile:") && s.text.contains("Aktualisiert")));
+    assert!(info
+        .sources
+        .iter()
+        .any(|s| s.label.starts_with("com.apple.iTunes:") && s.text == "Unveränderter Altbestand"));
 }
