@@ -13,10 +13,14 @@ Er startet bei Push auf `main`, Pull Requests oder manuell per `workflow_dispatc
 2. Die App bauen, Komponenten-/Hook-/Worker-Tests ausführen und die tatsächlich
    gebaute Oberfläche in Chromium prüfen: Dateien, Metadaten, Fehler, Download,
    Zwischenablage, Vorschau, Dark Mode, mobile Tabs und Drag-and-drop.
+   Audio: synthetische MP3-/FLAC-/AAC-Fixtures außerhalb des Repos erzeugen;
+   Rust-Rundläufe mit Audio-Payload-Hash, Tag-/Cover-Erhalt, SYLT und freiem
+   Lyricsfile-Feld prüfen. Chromium prüft Audio-Tags, einzelne Cover, Sidecar-ZIP,
+   heruntergeladene Dateien, echte Wiedergabe, Wortmarkierung und Wellenform.
 3. **Portable linux/windows**: passende Systemwerkzeuge und Desktop-Abhängigkeiten
    installieren, Tauri nativ kompilieren und portable Dateien archivieren.
 4. Native WebDriver-Tests starten die echte Anwendung und prüfen ihre WebView,
-   CSP-/Worker-/WASM-Anbindung und Live-Konvertierung. Native Betriebssystem-
+   CSP-/Worker-/WASM-Anbindung, Live-Konvertierung, Audio-Import und Cover-Dekodierung. Native Betriebssystem-
    Datei- und Speicherdialoge sind nicht Bestandteil dieser automatischen Tests.
 
 Die Chromium-Screenshots zeigen die fertige Oberfläche, keine SVG-Blueprints.
@@ -29,7 +33,8 @@ für ihren vollständigen Smoke-Test den nachfolgenden Jobstatus prüfen.
 | Name | Inhalt |
 | --- | --- |
 | `verso-web` | Gesamter statisch hostbarer Web-Ordner, inklusive WASM |
-| `verso-engine` | Gemeinsame WASM-Dateien/Loader für die Desktop-Jobs |
+| `verso-engine` | Lyrics- und Audio-WASM/Loader für die Desktop-Jobs |
+| `verso-audio-fixtures` | Temporär erzeugte synthetische Audio-Dateien für native Tests |
 | `verso-browser-report` | Chromium-Screenshots für Desktop, Mobile und Dark Mode sowie Bericht |
 | `verso-linux-x64` | Linux-TAR mit ausführbarer Datei und Laufzeithinweisen |
 | `verso-windows-x64` | Windows-ZIP mit portabler EXE und Laufzeithinweisen |

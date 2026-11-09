@@ -105,7 +105,7 @@ export default function AudioWorkspace() {
       .filter((c) => !c.id && c.data)
       .map((c, i) => ({
         id: "new:" + i,
-        kind: "CoverFront",
+        kind: info?.format === "Mp4" ? "Bild" : "CoverFront",
         description: "Neues Cover",
         mime:
           bytesFromBase64(c.data!).slice(0, 3).join(",") === "255,216,255"

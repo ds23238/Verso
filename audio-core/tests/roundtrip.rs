@@ -161,3 +161,24 @@ fn sylt_custom_lyricsfile_and_languages_survive() {
         .any(|t| t.text.as_deref() == Some("English retained")));
     assert_eq!(before.payload_sha256, after.payload_sha256);
 }
+#[test]
+fn clear_a_tag_and_add_numeric_fields() {
+    for ext in ["mp3", "flac", "m4a"] {
+        let bytes = std::fs::read(fixtures().join(format!("track.{ext}"))).unwrap();
+        let before = inspect_bytes(&bytes).unwrap();
+        let album = &before
+            .tags
+            .iter()
+            .find(|t| t.key == "AlbumTitle")
+            .unwrap()
+            .id;
+        let patch=serde_json::from_value(serde_json::json!({"fields":[{"id":album,"value":null},{"id":"@TrackNumber","value":"001"}]})).unwrap();
+        let output = edit_bytes(&bytes, patch).unwrap_or_else(|e| panic!("{ext}: {e}"));
+        let after = inspect_bytes(&output).unwrap();
+        assert!(!after.tags.iter().any(|t| t.key == "AlbumTitle"));
+        assert!(after
+            .tags
+            .iter()
+            .any(|t| t.key == "TrackNumber" && t.text.as_deref() == Some("1")));
+    }
+}
