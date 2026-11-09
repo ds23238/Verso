@@ -124,8 +124,14 @@ try {
   );
   if (process.env.VERSO_TEST_PLAYBACK === "true") {
     await execute("window.confirm = () => true;");
+    await until(() =>
+      execute("return document.querySelector('audio')?.duration > 0"),
+    );
     for (const ext of ["mp3", "flac", "m4a"]) {
       console.log("Stage: load audio", ext);
+      const oldSource = await execute(
+        "return document.querySelector('audio').currentSrc",
+      );
       const bytes = await readFile(
         resolve("../work/audio-fixtures/track." + ext),
       );
@@ -135,14 +141,17 @@ try {
       );
       await until(() =>
         execute(
-          "return document.querySelector('.track-summary')?.textContent.includes(arguments[0]) && document.querySelector('audio')?.duration>0",
-          ["track." + ext],
+          "return document.querySelector('.track-summary')?.textContent.includes(arguments[0]) && document.querySelector('audio')?.currentSrc !== arguments[1] && document.querySelector('audio')?.duration>0",
+          ["track." + ext, oldSource],
         ),
       );
       console.log("Stage: play audio", ext);
-      await execute(
-        "document.querySelector('audio').play().catch(e=>window.versoPlaybackError=String(e));",
-      );
+      const play = await call(`/session/${session}/element`, {
+        using: "css selector",
+        value: ".play-button",
+      });
+      const playId = play["element-6066-11e4-a52e-4f735466cecf"];
+      await call(`/session/${session}/element/${playId}/click`, {});
       await until(() =>
         execute(
           "return document.querySelector('audio')?.currentTime>0.15 && !document.querySelector('audio').paused",
@@ -237,6 +246,27 @@ try {
   console.log(
     "PASS: native Tauri starts and converts through its actual WebView/worker/CSP.",
   );
+} catch (error) {
+  if (session) {
+    try {
+      const state = await execute(
+        "const a=document.querySelector('audio');return {text:document.body.innerText,audio:a?{src:a.currentSrc,time:a.currentTime,duration:a.duration,paused:a.paused,readyState:a.readyState,error:a.error?.message}:null};",
+      );
+      await writeFile(
+        `${reportRoot}/failure-state.json`,
+        JSON.stringify(state, null, 2),
+      );
+    } catch {}
+    try {
+      const shot = await call(
+        `/session/${session}/screenshot`,
+        undefined,
+        "GET",
+      );
+      await writeFile(`${reportRoot}/failure.png`, Buffer.from(shot, "base64"));
+    } catch {}
+  }
+  throw error;
 } finally {
   if (session)
     await call(`/session/${session}`, undefined, "DELETE").catch(() => {});
