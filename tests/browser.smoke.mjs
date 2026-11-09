@@ -445,6 +445,34 @@ try {
     );
     assert(secondInfo.tags.some((t) => t.text === stored));
   }
+  // A valid Lyricsfile can still be unexportable as LRC; show the blocking reason in review.
+  await page
+    .getByRole("textbox", { name: "Audio-Lyrics-Text", exact: true })
+    .fill(
+      "version: '1.0'\nmetadata:\n  title: Offset-Test\n  artist: CI\n  offset_ms: 1000\nlines:\n  - text: Test\n    start_ms: 500\n",
+    );
+  await page.waitForFunction(() =>
+    document
+      .querySelector(".audio-diagnostics")
+      ?.textContent.includes("Zeilen"),
+  );
+  await page
+    .getByRole("button", { name: "Speichern unter…", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "LRC + Lyricsfile einbetten", exact: true })
+    .click();
+  await page.waitForFunction(() =>
+    document
+      .querySelector(".audio-save-dialog")
+      ?.textContent.includes("Zeitversatz mit ungeklärter Bedeutung"),
+  );
+  assert(
+    await page
+      .getByRole("button", { name: "Geprüfte Kopie exportieren", exact: true })
+      .isDisabled(),
+  );
+  await page.getByRole("button", { name: "Abbrechen", exact: true }).click();
   // Failed imports leave the previous file and drafts intact.
   await page.getByLabel("Audio-Datei öffnen", { exact: true }).setInputFiles({
     name: "broken.mp3",

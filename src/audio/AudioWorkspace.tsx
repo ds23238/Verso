@@ -940,6 +940,15 @@ export default function AudioWorkspace() {
                       Beschreibung sowie weitere Varianten bleiben erhalten.
                       SYLT bleibt unverändert.
                     </p>
+                    {embedFormat !== "plain" && !standard.current && (
+                      <p className="export-warning" role="status">
+                        {standard.pending
+                          ? "LRC-Ausgabe wird aktualisiert…"
+                          : standard.failure ||
+                            standard.result?.errors.map(explain).join(" · ") ||
+                            "LRC-Ausgabe ist noch nicht bereit."}
+                      </p>
+                    )}
                     {embedFormat !== "plain" &&
                       standard.result?.warnings.map((w, i) => (
                         <p className="export-warning" key={i}>
@@ -1010,6 +1019,15 @@ export default function AudioWorkspace() {
                     />{" "}
                     Vorhandene Wortzeiten als E-LRC erhalten
                   </label>
+                )}
+                {sideLrc && !lrc.current && (
+                  <p className="export-warning" role="status">
+                    {lrc.pending
+                      ? "LRC-Begleitdatei wird aktualisiert…"
+                      : lrc.failure ||
+                        lrc.result?.errors.map(explain).join(" · ") ||
+                        "LRC-Begleitdatei ist noch nicht bereit."}
+                  </p>
                 )}
                 {sideLrc &&
                   lrc.result?.warnings.map((w, i) => (
