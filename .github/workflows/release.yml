@@ -58,6 +58,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
           key: release-jammy
+          cache-on-failure: true
       - name: Materialize pinned libraries
         run: python3 scripts/bootstrap-libraries.py
       - uses: actions/download-artifact@v4
@@ -73,6 +74,7 @@ jobs:
           run-id: ${{ inputs.ci_run_id }}
           path: ${{ github.workspace }}/../work/audio-fixtures
       - name: Build AppImage and Debian package
+        id: bundle
         run: |
           npm ci
           npx tauri build --config packaging/tauri.linux.json --bundles appimage,deb
@@ -86,12 +88,14 @@ jobs:
           pactl load-module module-null-sink sink_name=verso_test
           echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$GITHUB_ENV"
           echo "PULSE_SERVER=unix:$XDG_RUNTIME_DIR/pulse/native" >> "$GITHUB_ENV"
+      - name: Install native test driver
+        run: cargo install tauri-driver --locked
       - name: Test extracted portable bundle
+        timeout-minutes: 8
         env:
           VERSO_TEST_REPORT_DIR: artifacts/linux-portable
           VERSO_TEST_PLAYBACK: 'true'
         run: |
-          cargo install tauri-driver --locked
           export VERSO_TEST_EXECUTABLE="$APPDIR/AppRun"
           xvfb-run -a npm run test:desktop
       - name: Install and test Debian package
@@ -105,6 +109,7 @@ jobs:
       - name: Test AppImage on minimal Ubuntu 24 without system WebKit
         run: xvfb-run -a --server-args='-screen 0 1280x1024x24 -ac' bash scripts/release/test-appimage-container.sh
       - uses: actions/upload-artifact@v4
+        if: always() && steps.bundle.outcome == 'success'
         with:
           name: release-package-linux
           path: release-assets/

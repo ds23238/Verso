@@ -1,6 +1,7 @@
 /** Native Tauri WebDriver smoke test. Start under Xvfb on Linux. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 const executable =
@@ -10,12 +11,19 @@ const executable =
     process.platform === "win32" ? "verso.exe" : "verso",
   );
 const reportRoot = process.env.VERSO_TEST_REPORT_DIR || "artifacts";
+mkdirSync(reportRoot, { recursive: true });
 const driver = spawn("tauri-driver", ["--port", "4444"], {
   stdio: ["ignore", "pipe", "pipe"],
 });
 let logs = "";
-driver.stdout.on("data", (value) => (logs += value));
-driver.stderr.on("data", (value) => (logs += value));
+driver.stdout.on("data", (value) => {
+  logs += value;
+  appendFileSync(`${reportRoot}/tauri-driver-${process.platform}.log`, value);
+});
+driver.stderr.on("data", (value) => {
+  logs += value;
+  appendFileSync(`${reportRoot}/tauri-driver-${process.platform}.log`, value);
+});
 driver.on("error", (error) => (logs += String(error)));
 const origin = "http://127.0.0.1:4444";
 let session;
@@ -23,6 +31,7 @@ await mkdir(reportRoot, { recursive: true });
 async function call(path, body, method = "POST") {
   const response = await fetch(origin + path, {
     method,
+    signal: AbortSignal.timeout(45000),
     headers: { "Content-Type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
@@ -90,6 +99,7 @@ try {
     `${reportRoot}/native-${process.platform}.png`,
     Buffer.from(image, "base64"),
   );
+  console.log("Stage: audio workspace");
   // Exercise the audio worker and cover decoding under the actual native CSP.
   await execute(
     "Array.from(document.querySelectorAll('.workspace-modes button')).find(b=>b.textContent==='Audio-Datei').click();",
@@ -113,7 +123,9 @@ try {
     "Abendlicht",
   );
   if (process.env.VERSO_TEST_PLAYBACK === "true") {
+    await execute("window.confirm = () => true;");
     for (const ext of ["mp3", "flac", "m4a"]) {
+      console.log("Stage: load audio", ext);
       const bytes = await readFile(
         resolve("../work/audio-fixtures/track." + ext),
       );
@@ -127,6 +139,7 @@ try {
           ["track." + ext],
         ),
       );
+      console.log("Stage: play audio", ext);
       await execute(
         "document.querySelector('audio').play().catch(e=>window.versoPlaybackError=String(e));",
       );
@@ -138,6 +151,7 @@ try {
       await execute("document.querySelector('audio').pause();");
     }
   }
+  console.log("Stage: cover import");
   const coverBytes = await readFile(
     resolve("../work/audio-fixtures/cover.png"),
   );
