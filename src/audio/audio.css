@@ -514,3 +514,26 @@ main[hidden] {
     flex-wrap: wrap;
   }
 }
+
+.timeline-ruler {
+  display: flex;
+  justify-content: space-between;
+  font:
+    11px ui-monospace,
+    monospace;
+  color: var(--muted);
+  margin: 4px 2px 8px;
+}
+.app-shell > header {
+  height: auto;
+  min-height: 100px;
+  padding: 18px 0;
+}
+@media (max-width: 700px) {
+  .app-shell > header {
+    padding: 12px 0;
+  }
+  .audio-timeline svg {
+    height: 85px;
+  }
+}

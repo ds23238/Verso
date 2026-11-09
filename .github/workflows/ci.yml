@@ -80,6 +80,13 @@ jobs:
           path: public/engine/
           if-no-files-found: error
           retention-days: 14
+      - name: Share synthetic audio fixtures for native tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: verso-audio-fixtures
+          path: ../work/audio-fixtures/
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload statically hostable application
         uses: actions/upload-artifact@v4
         with:
@@ -137,6 +144,10 @@ jobs:
         with:
           name: verso-engine
           path: ${{ env.VERSO_ENGINE_DIR }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: verso-audio-fixtures
+          path: ${{ github.workspace }}/../work/audio-fixtures
       - name: Install app dependencies
         run: npm ci
       - name: Build portable executable

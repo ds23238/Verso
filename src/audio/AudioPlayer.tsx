@@ -30,6 +30,7 @@ export default function AudioPlayer({
     setTime(0);
     setDuration(0);
     setWave([]);
+    setWaveBusy(false);
     setMessage("");
     const g = ++generation.current;
     return () => {
@@ -37,6 +38,16 @@ export default function AudioPlayer({
       URL.revokeObjectURL(u);
     };
   }, [file]);
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    const update = () => {
+      if (audio.current) setTime(audio.current.currentTime);
+      frame = requestAnimationFrame(update);
+    };
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [playing]);
   const lines = useMemo(
     () => [...(doc?.lines ?? [])].sort((a, b) => a.start_ms - b.start_ms),
     [doc],
@@ -46,8 +57,12 @@ export default function AudioPlayer({
   );
   const shown =
     current >= 0 ? current : lines.findIndex((l) => l.start_ms > time * 1000);
+  const visibleSpan = Math.min(span, Math.max(duration, 1));
   const start = follow
-    ? Math.max(0, Math.min(Math.max(0, duration - span), time - span / 3))
+    ? Math.max(
+        0,
+        Math.min(Math.max(0, duration - visibleSpan), time - visibleSpan / 3),
+      )
     : windowStart;
   function seek(t: number) {
     if (audio.current) {
@@ -113,13 +128,15 @@ export default function AudioPlayer({
         src={url}
         preload="metadata"
         onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) =>
+        onLoadedMetadata={(e) => {
+          e.currentTarget.volume = volume;
+          e.currentTarget.playbackRate = Number(speed);
           setDuration(
             Number.isFinite(e.currentTarget.duration)
               ? e.currentTarget.duration
               : 0,
-          )
-        }
+          );
+        }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
@@ -160,7 +177,7 @@ export default function AudioPlayer({
                 : lines[current].text}
         </div>
         <p className="neighbor">
-          {lines[shown + 1]?.text ??
+          {lines[current < 0 ? shown : shown + 1]?.text ??
             (lines.length
               ? " "
               : "Öffne Lyrics oder eine Begleitdatei für die synchrone Vorschau.")}
@@ -269,15 +286,11 @@ export default function AudioPlayer({
         </button>
       </div>
       <div className="audio-timeline" aria-label="Zeitleiste">
-        <svg
-          viewBox="0 0 900 110"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 0 900 90" preserveAspectRatio="none" aria-hidden="true">
           <line x1="0" y1="55" x2="900" y2="55" className="wave-base" />
           {wave.map((peak, i) => {
             const sec = (i / wave.length) * duration;
-            const x = ((sec - start) / span) * 900;
+            const x = ((sec - start) / visibleSpan) * 900;
             return x >= 0 && x <= 900 ? (
               <line
                 key={i}
@@ -289,26 +302,28 @@ export default function AudioPlayer({
               />
             ) : null;
           })}
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <text key={i} x={i * 175 + 2} y="105">
-              {timeLabel((start + (i * span) / 5) * 1000).slice(0, 5)}
-            </text>
-          ))}
           <line
-            x1={((time - start) / span) * 900}
-            x2={((time - start) / span) * 900}
+            x1={((time - start) / visibleSpan) * 900}
+            x2={((time - start) / visibleSpan) * 900}
             y1="0"
             y2="88"
             className="playhead"
           />
         </svg>
+        <div className="timeline-ruler">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <span key={i}>
+              {timeLabel((start + (i * visibleSpan) / 4) * 1000).slice(0, 5)}
+            </span>
+          ))}
+        </div>
         <div className="cue-list">
           {!stale &&
             lines
               .filter(
                 (l) =>
                   l.start_ms / 1000 >= start &&
-                  l.start_ms / 1000 <= start + span,
+                  l.start_ms / 1000 <= start + visibleSpan,
               )
               .map((l, i) => (
                 <button
@@ -326,7 +341,7 @@ export default function AudioPlayer({
           aria-label="Zeitleiste verschieben"
           type="range"
           min="0"
-          max={Math.max(0, duration - span)}
+          max={Math.max(0, duration - visibleSpan)}
           value={windowStart}
           onChange={(e) => setWindowStart(Number(e.target.value))}
         />

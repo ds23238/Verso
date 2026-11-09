@@ -199,7 +199,10 @@ export default function App() {
                 : "Konvertierung bereit";
   return (
     <>
-      <a className="skip-link" href="#workspace">
+      <a
+        className="skip-link"
+        href={mode === "text" ? "#workspace" : "#audio-workspace"}
+      >
         Zum Arbeitsbereich
       </a>
       <div
@@ -229,7 +232,10 @@ export default function App() {
           <nav className="workspace-modes" aria-label="Verso Arbeitsmodus">
             <button
               aria-pressed={mode === "text"}
-              onClick={() => setMode("text")}
+              onClick={() => {
+                setMode("text");
+                setToast("");
+              }}
             >
               Text konvertieren
             </button>
@@ -237,6 +243,7 @@ export default function App() {
               aria-pressed={mode === "audio"}
               onClick={() => {
                 setMode("audio");
+                setToast("");
                 setAudioVisited(true);
               }}
             >

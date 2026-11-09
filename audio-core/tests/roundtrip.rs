@@ -79,7 +79,7 @@ fn sylt_custom_lyricsfile_and_languages_survive() {
         file::AudioFile,
         id3::v2::{
             BinaryFrame, ExtendedTextFrame, Frame, FrameId, SyncTextContentType,
-            SynchronizedTextFrame, TimestampFormat,
+            SynchronizedTextFrame, TimestampFormat, UnsynchronizedTextFrame,
         },
         TextEncoding,
     };
@@ -116,6 +116,18 @@ fn sylt_custom_lyricsfile_and_languages_survive() {
         "PRIVATE_UNKNOWN",
         "keep this",
     )));
+    tag.insert(Frame::UnsynchronizedText(UnsynchronizedTextFrame::new(
+        TextEncoding::UTF8,
+        *b"deu",
+        "Alternative",
+        "Deutsch erhalten",
+    )));
+    tag.insert(Frame::UnsynchronizedText(UnsynchronizedTextFrame::new(
+        TextEncoding::UTF8,
+        *b"eng",
+        "Alternative",
+        "English retained",
+    )));
     let mut cursor = Cursor::new(bytes);
     file.save_to(&mut cursor, WriteOptions::default()).unwrap();
     let input = cursor.into_inner();
@@ -132,12 +144,20 @@ fn sylt_custom_lyricsfile_and_languages_survive() {
     let output = edit_bytes(
         &input,
         serde_json::from_value(
-            serde_json::json!({"fields":[{"id":"@AlbumArtist","value":"Neuer Wert"}]}),
+            serde_json::json!({"fields":[{"id":"@AlbumArtist","value":"Neuer Wert"}],"plain":"Updated first entry"}),
         )
         .unwrap(),
     )
     .unwrap();
     let after = inspect_bytes(&output).unwrap();
     assert_eq!(after.sources.len(), 2);
+    assert!(after
+        .tags
+        .iter()
+        .any(|t| t.text.as_deref() == Some("Deutsch erhalten")));
+    assert!(after
+        .tags
+        .iter()
+        .any(|t| t.text.as_deref() == Some("English retained")));
     assert_eq!(before.payload_sha256, after.payload_sha256);
 }

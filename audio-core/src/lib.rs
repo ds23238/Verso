@@ -363,6 +363,9 @@ fn opaque(bytes: &[u8], kind: FileType) -> Result<Vec<String>, String> {
                     {
                         out.push(format!("WXXX:{t:?}"))
                     }
+                    Frame::Private(p) => {
+                        out.push(format!("PRIV:{}:{}", p.owner, hex(&p.private_data)))
+                    }
                     _ => {}
                 }
             }
@@ -395,9 +398,32 @@ fn opaque(bytes: &[u8], kind: FileType) -> Result<Vec<String>, String> {
     out.sort();
     Ok(out)
 }
+fn text_value(key: ItemKey, value: &str) -> Result<String, String> {
+    if matches!(
+        key,
+        ItemKey::TrackNumber | ItemKey::TrackTotal | ItemKey::DiscNumber | ItemKey::DiscTotal
+    ) {
+        value
+            .trim()
+            .parse::<u16>()
+            .map(|v| v.to_string())
+            .map_err(|_| {
+                "Track- und Disc-Nummern müssen ganze Zahlen zwischen 0 und 65535 sein.".into()
+            })
+    } else {
+        Ok(value.into())
+    }
+}
 pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
     let mut file = read(bytes)?;
     let before = payload(bytes, file.file_type())?;
+    let lengths: Vec<usize> = file.tags().iter().map(|tag| tag.items().len()).collect();
+    for f in patch.fields.iter().filter(|f| !f.id.starts_with('@')) {
+        let (t, i) = parse_id(&f.id)?;
+        if lengths.get(t).is_none_or(|n| i >= *n) {
+            return Err("Unbekannte Tag-ID".into());
+        }
+    }
     // Stable IDs refer to the immutable source. Rebuild each tag once, preserving duplicate entries.
     for (t, tag_type) in file
         .tags()
@@ -419,7 +445,7 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
                         item.key(),
                         match item.value() {
                             ItemValue::Locator(_) => ItemValue::Locator(value.clone()),
-                            _ => ItemValue::Text(value.clone()),
+                            _ => ItemValue::Text(text_value(item.key(), value)?),
                         },
                     );
                     new.set_lang(*item.lang());
@@ -433,17 +459,6 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
         tag.retain(|_| false);
         for item in items {
             tag.push_unchecked(item);
-        }
-    }
-    for f in patch.fields.iter().filter(|f| !f.id.starts_with('@')) {
-        let (t, i) = parse_id(&f.id)?;
-        if read(bytes)?
-            .tags()
-            .get(t)
-            .and_then(|tag| tag.items().nth(i))
-            .is_none()
-        {
-            return Err("Unbekannte Tag-ID".into());
         }
     }
     let primary = file.primary_tag_type();
@@ -496,7 +511,7 @@ pub fn edit_bytes(bytes: &[u8], patch: Patch) -> Result<Vec<u8>, String> {
         if let Some(value) = &field.value {
             file.primary_tag_mut()
                 .unwrap()
-                .insert_text(key, value.clone());
+                .insert_text(key, text_value(key, value)?);
         }
     }
     // Replace before deleting, then descending indices prevent shifts.

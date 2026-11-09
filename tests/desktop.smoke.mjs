@@ -1,32 +1,163 @@
 /** Native Tauri WebDriver smoke test. Start under Xvfb on Linux. */
-import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
-import {resolve} from 'node:path';
-import {mkdir,writeFile} from 'node:fs/promises';
-const executable=resolve('src-tauri/target/release',process.platform==='win32'?'verso.exe':'verso');
-const driver=spawn('tauri-driver',['--port','4444'],{stdio:['ignore','pipe','pipe']});
-let logs='';driver.stdout.on('data',value=>logs+=value);driver.stderr.on('data',value=>logs+=value);driver.on('error',error=>logs+=String(error));
-const origin='http://127.0.0.1:4444';
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
+const executable = resolve(
+  "src-tauri/target/release",
+  process.platform === "win32" ? "verso.exe" : "verso",
+);
+const driver = spawn("tauri-driver", ["--port", "4444"], {
+  stdio: ["ignore", "pipe", "pipe"],
+});
+let logs = "";
+driver.stdout.on("data", (value) => (logs += value));
+driver.stderr.on("data", (value) => (logs += value));
+driver.on("error", (error) => (logs += String(error)));
+const origin = "http://127.0.0.1:4444";
 let session;
-await mkdir('artifacts',{recursive:true});
-async function call(path,body,method='POST'){
- const response=await fetch(origin+path,{method,headers:{'Content-Type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})});
- const result=await response.json();if(!response.ok||result.value?.error)throw Error(JSON.stringify(result));return result.value;
+await mkdir("artifacts", { recursive: true });
+async function call(path, body, method = "POST") {
+  const response = await fetch(origin + path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.value?.error) throw Error(JSON.stringify(result));
+  return result.value;
 }
-async function until(action){const deadline=Date.now()+90000;let last;while(Date.now()<deadline){try{const value=await action();if(value)return value;}catch(error){last=error;}await new Promise(done=>setTimeout(done,300));}throw Error(`Native wait timed out: ${last??logs}`);}
-const execute=(script,args=[])=>call(`/session/${session}/execute/sync`,{script,args});
-try{
- await until(async()=>{try{await fetch(origin+'/status');return true;}catch{return false;}});
- const created=await call('/session',{capabilities:{alwaysMatch:{'tauri:options':{application:executable}}}});session=created.sessionId;assert(session);
- await until(()=>execute("return document.querySelector('.status-row [role=status]')?.textContent === 'Bereit für deinen Text'"));
- await execute("const e=document.querySelector('textarea[aria-label=Eingabe]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(e,arguments[0]);e.dispatchEvent(new Event('input',{bubbles:true}));",['[ti:Native]\n[ar:CI]\n[00:01.200]<00:01.200>Hello <00:01.800>world']);
- await until(()=>execute("return document.querySelector('textarea[aria-label=Ergebnis]')?.value.includes('start_ms: 1200') && document.querySelector('.status-row [role=status]')?.textContent === 'Konvertierung bereit'"));
- const output=await execute("return document.querySelector('textarea[aria-label=Ergebnis]').value");assert(output.includes('words:'));assert(output.includes('Native'));
- assert.equal(await execute("return document.querySelectorAll('img').length"),0);
- const image=await call(`/session/${session}/screenshot`,undefined,'GET');await writeFile(`artifacts/native-${process.platform}.png`,Buffer.from(image,'base64'));
- await writeFile(`artifacts/native-${process.platform}.json`,JSON.stringify({status:'passed',platform:process.platform,checks:['native-start','worker-wasm-under-csp','live-conversion','word-timing','no-logo'],nativeDialogs:'not automated'},null,2));
- console.log('PASS: native Tauri starts and converts through its actual WebView/worker/CSP.');
-}finally{
- if(session)await call(`/session/${session}`,undefined,'DELETE').catch(()=>{});
- driver.kill();await writeFile(`artifacts/tauri-driver-${process.platform}.log`,logs);
+async function until(action) {
+  const deadline = Date.now() + 90000;
+  let last;
+  while (Date.now() < deadline) {
+    try {
+      const value = await action();
+      if (value) return value;
+    } catch (error) {
+      last = error;
+    }
+    await new Promise((done) => setTimeout(done, 300));
+  }
+  throw Error(`Native wait timed out: ${last ?? logs}`);
+}
+const execute = (script, args = []) =>
+  call(`/session/${session}/execute/sync`, { script, args });
+try {
+  await until(async () => {
+    try {
+      await fetch(origin + "/status");
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  const created = await call("/session", {
+    capabilities: {
+      alwaysMatch: { "tauri:options": { application: executable } },
+    },
+  });
+  session = created.sessionId;
+  assert(session);
+  await until(() =>
+    execute(
+      "return document.querySelector('.status-row [role=status]')?.textContent === 'Bereit für deinen Text'",
+    ),
+  );
+  await execute(
+    "const e=document.querySelector('textarea[aria-label=Eingabe]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(e,arguments[0]);e.dispatchEvent(new Event('input',{bubbles:true}));",
+    ["[ti:Native]\n[ar:CI]\n[00:01.200]<00:01.200>Hello <00:01.800>world"],
+  );
+  await until(() =>
+    execute(
+      "return document.querySelector('textarea[aria-label=Ergebnis]')?.value.includes('start_ms: 1200') && document.querySelector('.status-row [role=status]')?.textContent === 'Konvertierung bereit'",
+    ),
+  );
+  const output = await execute(
+    "return document.querySelector('textarea[aria-label=Ergebnis]').value",
+  );
+  assert(output.includes("words:"));
+  assert(output.includes("Native"));
+  assert.equal(
+    await execute("return document.querySelectorAll('img').length"),
+    0,
+  );
+  const image = await call(`/session/${session}/screenshot`, undefined, "GET");
+  await writeFile(
+    `artifacts/native-${process.platform}.png`,
+    Buffer.from(image, "base64"),
+  );
+  // Exercise the audio worker and cover decoding under the actual native CSP.
+  await execute(
+    "Array.from(document.querySelectorAll('.workspace-modes button')).find(b=>b.textContent==='Audio-Datei').click();",
+  );
+  const audioBytes = await readFile(
+    resolve("../work/audio-fixtures/track.mp3"),
+  );
+  await execute(
+    "const input=document.querySelector('input[aria-label=\"Audio-Datei öffnen\"]');const dt=new DataTransfer();dt.items.add(new File([Uint8Array.from(atob(arguments[0]),c=>c.charCodeAt(0))],'track.mp3',{type:'audio/mpeg'}));input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));",
+    [audioBytes.toString("base64")],
+  );
+  await until(() =>
+    execute(
+      "return document.querySelector('.track-summary')?.textContent.includes('track.mp3')",
+    ),
+  );
+  assert.equal(
+    await execute(
+      "return document.querySelector('input[aria-label=\"Track Titel\"]').value",
+    ),
+    "Abendlicht",
+  );
+  const coverBytes = await readFile(
+    resolve("../work/audio-fixtures/cover.png"),
+  );
+  await execute(
+    "const input=document.querySelector('input[aria-label=\"Cover importieren\"]');const dt=new DataTransfer();dt.items.add(new File([Uint8Array.from(atob(arguments[0]),c=>c.charCodeAt(0))],'cover.png',{type:'image/png'}));input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));",
+    [coverBytes.toString("base64")],
+  );
+  await until(() =>
+    execute(
+      "return document.querySelector('.cover-art img')?.naturalWidth===300",
+    ),
+  );
+  const nativeAudioImage = await call(
+    `/session/${session}/screenshot`,
+    undefined,
+    "GET",
+  );
+  await writeFile(
+    `artifacts/native-audio-${process.platform}.png`,
+    Buffer.from(nativeAudioImage, "base64"),
+  );
+  await writeFile(
+    `artifacts/native-${process.platform}.json`,
+    JSON.stringify(
+      {
+        status: "passed",
+        platform: process.platform,
+        checks: [
+          "native-start",
+          "worker-wasm-under-csp",
+          "live-conversion",
+          "word-timing",
+          "no-logo",
+          "audio-worker-under-csp",
+          "audio-tags",
+          "cover-import",
+        ],
+        nativeDialogs: "not automated",
+      },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    "PASS: native Tauri starts and converts through its actual WebView/worker/CSP.",
+  );
+} finally {
+  if (session)
+    await call(`/session/${session}`, undefined, "DELETE").catch(() => {});
+  driver.kill();
+  await writeFile(`artifacts/tauri-driver-${process.platform}.log`, logs);
 }

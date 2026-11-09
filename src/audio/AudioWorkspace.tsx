@@ -13,6 +13,7 @@ import {
   type Patch,
 } from "./client";
 import AudioPlayer from "./AudioPlayer";
+import { lyricOverrides } from "./model";
 import "./audio.css";
 interface Source {
   id: string;
@@ -62,38 +63,24 @@ export default function AudioWorkspace() {
     const t = info?.tags.find((t) => t.key === key);
     return t ? (fields[t.id] ?? t.text ?? "") : (fields["@" + key] ?? "");
   };
-  const overrides = useMemo(
-    () =>
-      align
-        ? {
-            title: tagValue("TrackTitle"),
-            artist: tagValue("TrackArtist"),
-            album: tagValue("AlbumTitle"),
-          }
-        : {},
-    [align, fields, info],
-  );
-  // Missing identities may be supplied by track tags without rewriting the source draft.
-  const identities = useMemo(
-    () => ({
-      ...(tagValue("TrackTitle") ? { title: tagValue("TrackTitle") } : {}),
-      ...(tagValue("TrackArtist") ? { artist: tagValue("TrackArtist") } : {}),
-    }),
-    [fields, info],
-  );
   const request = useMemo(
     () => ({
       source: source?.text ?? "",
       format: source?.format ?? ("auto" as const),
       target: "lyricsfile" as const,
       offset,
-      overrides: align
-        ? overrides
-        : source?.format === "lyricsfile"
-          ? {}
-          : identities,
+      overrides: lyricOverrides(
+        source?.text ?? "",
+        source?.format ?? "auto",
+        {
+          title: tagValue("TrackTitle"),
+          artist: tagValue("TrackArtist"),
+          album: tagValue("AlbumTitle"),
+        },
+        align,
+      ),
     }),
-    [source, offset, overrides, identities, align],
+    [source, offset, fields, info, align],
   );
   const lf = useConversion(request, 0);
   const lrc = useConversion(
@@ -342,7 +329,10 @@ export default function AudioWorkspace() {
     setNotice("");
     try {
       const patch: Patch = {
-        fields: Object.entries(fields).map(([id, value]) => ({ id, value })),
+        fields: Object.entries(fields).map(([id, value]) => ({
+          id,
+          value: value === "" ? null : value,
+        })),
         covers,
       };
       if (embed) {

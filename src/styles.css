@@ -140,9 +140,15 @@ a {
   left: 8px;
   padding: 12px;
   background: var(--surface);
-  transform: translateY(-150%);
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
 }
 .skip-link:focus {
+  clip-path: none;
+  width: auto;
+  height: auto;
   transform: none;
 }
 header {
