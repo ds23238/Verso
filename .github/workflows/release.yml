@@ -1,0 +1,238 @@
+name: Prepare release packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful main CI run with identical application/engine sources
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: verso-release-preparation
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.input.outputs.version }}
+      ci_sha: ${{ steps.input.outputs.ci_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify tested source and version
+        id: input
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+        run: python3 scripts/release/verify-input.py
+
+  linux:
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      VERSO_ENGINE_DIR: ${{ github.workspace }}/../verso-release-engine
+      APPIMAGE_EXTRACT_AND_RUN: '1'
+      NO_STRIP: '1'
+      WEBKIT_DISABLE_DMABUF_RENDERER: '1'
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install bundle and audio dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf file libfuse2 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-alsa gstreamer1.0-pulseaudio fonts-dejavu-core webkit2gtk-driver xvfb xdotool imagemagick dbus-x11 pulseaudio
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: release-jammy
+      - name: Materialize pinned libraries
+        run: python3 scripts/bootstrap-libraries.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: verso-engine
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.ci_run_id }}
+          path: ${{ env.VERSO_ENGINE_DIR }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: verso-audio-fixtures
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.ci_run_id }}
+          path: ${{ github.workspace }}/../work/audio-fixtures
+      - name: Build AppImage and Debian package
+        run: |
+          npm ci
+          npx tauri build --config packaging/tauri.linux.json --bundles appimage,deb
+          python3 scripts/release/collect.py linux
+      - name: Start virtual audio output for real decoder tests
+        run: |
+          export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-$RUNNER_TEMP/verso-runtime}"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=verso_test
+          echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$GITHUB_ENV"
+          echo "PULSE_SERVER=unix:$XDG_RUNTIME_DIR/pulse/native" >> "$GITHUB_ENV"
+      - name: Test extracted portable bundle
+        env:
+          VERSO_TEST_REPORT_DIR: artifacts/linux-portable
+          VERSO_TEST_PLAYBACK: 'true'
+        run: |
+          cargo install tauri-driver --locked
+          export VERSO_TEST_EXECUTABLE="$APPDIR/AppRun"
+          xvfb-run -a npm run test:desktop
+      - name: Install and test Debian package
+        env:
+          VERSO_TEST_EXECUTABLE: /usr/bin/verso
+          VERSO_TEST_REPORT_DIR: artifacts/linux-deb
+          VERSO_TEST_PLAYBACK: 'true'
+        run: |
+          sudo apt-get install -y ./release-assets/*.deb
+          xvfb-run -a npm run test:desktop
+      - name: Test AppImage on minimal Ubuntu 24 without system WebKit
+        run: xvfb-run -a --server-args='-screen 0 1280x1024x24 -ac' bash scripts/release/test-appimage-container.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-package-linux
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-report-linux
+          path: artifacts/
+          retention-days: 30
+
+  windows:
+    needs: verify
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      VERSO_ENGINE_DIR: ${{ github.workspace }}/../verso-release-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Materialize pinned libraries
+        run: python scripts/bootstrap-libraries.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: verso-engine
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.ci_run_id }}
+          path: ${{ env.VERSO_ENGINE_DIR }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: verso-audio-fixtures
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.ci_run_id }}
+          path: ${{ github.workspace }}/../work/audio-fixtures
+      - name: Build MSI with offline WebView2 and portable EXE
+        run: |
+          npm ci
+          npx tauri build --config packaging/tauri.windows.json --bundles msi
+          python scripts/release/collect.py windows
+      - name: Install matching native driver
+        run: |
+          cargo install tauri-driver --locked
+          ./scripts/install-edge-driver.ps1
+      - name: Test portable EXE
+        shell: pwsh
+        run: |
+          $env:VERSO_TEST_EXECUTABLE = (Get-ChildItem release-assets -Filter '*-portable.exe').FullName
+          $env:VERSO_TEST_REPORT_DIR = 'artifacts/windows-portable'
+          npm run test:desktop
+          if ($LASTEXITCODE -ne 0) { throw 'Portable application test failed' }
+      - name: Install, test and uninstall MSI
+        shell: pwsh
+        run: ./scripts/release/test-msi.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-package-windows
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-report-windows
+          path: artifacts/
+          retention-days: 30
+
+  flatpak:
+    needs: [verify, linux]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-package-linux
+          path: release-assets/
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder xvfb xdotool imagemagick dbus-x11
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Package and test GNOME runtime bundle
+        run: bash scripts/release/build-flatpak.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-package-flatpak
+          path: release-assets/*.flatpak
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-report-flatpak
+          path: artifacts/
+          retention-days: 30
+
+  draft:
+    needs: [verify, linux, windows, flatpak]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CI_RUN_ID: ${{ inputs.ci_run_id }}
+      CI_SHA: ${{ needs.verify.outputs.ci_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-package-*
+          merge-multiple: true
+          path: release-assets/
+      - name: Check all formats and prepare checksums
+        run: python3 scripts/release/finalize.py
+      - name: Create or update unpublished draft
+        run: python3 scripts/release/create-draft.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ needs.verify.outputs.version }}-x86_64
+          path: release-assets/
+          if-no-files-found: error
+          retention-days: 30

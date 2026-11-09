@@ -1,0 +1,24 @@
+app-id: local.verso.app
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+command: verso
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  # Native atomic save copies use a temporary sibling file in the chosen directory.
+  - --filesystem=home
+  - --env=GTK_USE_PORTAL=1
+modules:
+  - name: verso
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 verso /app/bin/verso
+      - install -Dm644 local.verso.app.desktop /app/share/applications/local.verso.app.desktop
+      - install -Dm644 icon.png /app/share/icons/hicolor/32x32/apps/local.verso.app.png
+    sources:
+      - type: dir
+        path: binary

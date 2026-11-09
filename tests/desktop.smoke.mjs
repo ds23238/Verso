@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
-const executable = resolve(
-  "src-tauri/target/release",
-  process.platform === "win32" ? "verso.exe" : "verso",
-);
+const executable =
+  process.env.VERSO_TEST_EXECUTABLE ||
+  resolve(
+    "src-tauri/target/release",
+    process.platform === "win32" ? "verso.exe" : "verso",
+  );
+const reportRoot = process.env.VERSO_TEST_REPORT_DIR || "artifacts";
 const driver = spawn("tauri-driver", ["--port", "4444"], {
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -16,7 +19,7 @@ driver.stderr.on("data", (value) => (logs += value));
 driver.on("error", (error) => (logs += String(error)));
 const origin = "http://127.0.0.1:4444";
 let session;
-await mkdir("artifacts", { recursive: true });
+await mkdir(reportRoot, { recursive: true });
 async function call(path, body, method = "POST") {
   const response = await fetch(origin + path, {
     method,
@@ -84,7 +87,7 @@ try {
   );
   const image = await call(`/session/${session}/screenshot`, undefined, "GET");
   await writeFile(
-    `artifacts/native-${process.platform}.png`,
+    `${reportRoot}/native-${process.platform}.png`,
     Buffer.from(image, "base64"),
   );
   // Exercise the audio worker and cover decoding under the actual native CSP.
@@ -109,6 +112,32 @@ try {
     ),
     "Abendlicht",
   );
+  if (process.env.VERSO_TEST_PLAYBACK === "true") {
+    for (const ext of ["mp3", "flac", "m4a"]) {
+      const bytes = await readFile(
+        resolve("../work/audio-fixtures/track." + ext),
+      );
+      await execute(
+        "const input=document.querySelector('input[aria-label=\"Audio-Datei öffnen\"]');const dt=new DataTransfer();dt.items.add(new File([Uint8Array.from(atob(arguments[0]),c=>c.charCodeAt(0))],arguments[1]));input.files=dt.files;input.dispatchEvent(new Event('change',{bubbles:true}));",
+        [bytes.toString("base64"), "track." + ext],
+      );
+      await until(() =>
+        execute(
+          "return document.querySelector('.track-summary')?.textContent.includes(arguments[0]) && document.querySelector('audio')?.duration>0",
+          ["track." + ext],
+        ),
+      );
+      await execute(
+        "document.querySelector('audio').play().catch(e=>window.versoPlaybackError=String(e));",
+      );
+      await until(() =>
+        execute(
+          "return document.querySelector('audio')?.currentTime>0.15 && !document.querySelector('audio').paused",
+        ),
+      );
+      await execute("document.querySelector('audio').pause();");
+    }
+  }
   const coverBytes = await readFile(
     resolve("../work/audio-fixtures/cover.png"),
   );
@@ -127,7 +156,7 @@ try {
     "GET",
   );
   await writeFile(
-    `artifacts/native-audio-${process.platform}.png`,
+    `${reportRoot}/native-audio-${process.platform}.png`,
     Buffer.from(nativeAudioImage, "base64"),
   );
   await until(() =>
@@ -162,14 +191,14 @@ try {
     "GET",
   );
   await writeFile(
-    `artifacts/native-export-${process.platform}.png`,
+    `${reportRoot}/native-export-${process.platform}.png`,
     Buffer.from(nativeExportImage, "base64"),
   );
   await execute(
     "Array.from(document.querySelectorAll('.audio-save-dialog button')).find(b=>b.textContent==='Schließen').click();",
   );
   await writeFile(
-    `artifacts/native-${process.platform}.json`,
+    `${reportRoot}/native-${process.platform}.json`,
     JSON.stringify(
       {
         status: "passed",
@@ -198,5 +227,5 @@ try {
   if (session)
     await call(`/session/${session}`, undefined, "DELETE").catch(() => {});
   driver.kill();
-  await writeFile(`artifacts/tauri-driver-${process.platform}.log`, logs);
+  await writeFile(`${reportRoot}/tauri-driver-${process.platform}.log`, logs);
 }

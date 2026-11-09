@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "active": true,
+    "targets": ["appimage", "deb"],
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "category": "Music",
+    "publisher": "GPT 6.1 Sol",
+    "homepage": "https://github.com/ds23238/Verso",
+    "shortDescription": "Local lyrics converter and audio tag editor",
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true,
+        "files": {"/usr/share/fonts/truetype/dejavu": "/usr/share/fonts/truetype/dejavu"}
+      },
+      "deb": {
+        "section": "sound",
+        "depends": ["gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-plugins-ugly", "gstreamer1.0-libav", "gstreamer1.0-pulseaudio", "fonts-dejavu-core"]
+      }
+    }
+  }
+}

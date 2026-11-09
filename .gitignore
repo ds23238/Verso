@@ -13,9 +13,15 @@ __pycache__/
 
 dist/
 public/engine/
-release/
+/release/
 *.tsbuildinfo
 
 artifacts/
 
 /audio-core/target/
+
+/release-assets/
+/packaging/flatpak/binary/
+/.flatpak-builder/
+/flatpak-build/
+/flatpak-repo/

@@ -190,3 +190,11 @@ Actions führt außerdem die Audio-Oberfläche in echtem Chromium aus, prüft
 Audio-Wiedergabe, Cover und heruntergeladene Audio-/Sidecar-Ausgaben und erzeugt
 Screenshots. `docs/AUDIO_V2_PLAN.md` bleibt der ursprüngliche Entwurf; diese
 README beschreibt den implementierten Umfang und seine Grenzen.
+
+## Release-Pakete
+
+Der gesonderte Workflow `Prepare release packages` bereitet Linux-Portable,
+AppImage mit Medien-Laufzeit, Debian, Flatpak, Windows-MSI mit WebView2-Offline-
+Installer und eine portable EXE vor. Er erzeugt ausschließlich einen unveröffentlichten
+Release-Entwurf. Voraussetzungen, Paketgrenzen und Prüfschritte stehen in
+[Release-Vorbereitung](docs/RELEASE_PREPARATION.md).

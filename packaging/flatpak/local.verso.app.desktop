@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Verso
+Comment=Local lyrics converter and audio tag editor
+Exec=verso
+Icon=local.verso.app
+Terminal=false
+Categories=AudioVideo;Audio;Music;
+StartupWMClass=verso
