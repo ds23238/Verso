@@ -294,9 +294,20 @@ try {
       .selectOption(tagMode);
     await page.screenshot({
       path: "artifacts/audio-export-" + ext + ".png",
-      fullPage: true,
+      fullPage: false,
     });
 
+    if (ext === "mp3") {
+      await page.setViewportSize({ width: 390, height: 844 });
+      assert.equal(
+        await page
+          .locator(".audio-save-dialog")
+          .evaluate((el) => el.scrollWidth > el.clientWidth),
+        false,
+      );
+      await page.screenshot({ path: "artifacts/audio-export-mobile.png" });
+      await page.setViewportSize({ width: 1440, height: 1100 });
+    }
     await page
       .getByRole("checkbox", {
         name: "Lyrics ins Standardfeld einbetten",
@@ -382,13 +393,11 @@ try {
       await page.setViewportSize({ width: 1440, height: 1100 });
     }
     // Reopen dual-tag exports and do a normal tag-only save: both lyrics fields must survive.
-    await page
-      .getByLabel("Audio-Datei öffnen", { exact: true })
-      .setInputFiles({
-        name: "dual." + ext,
-        mimeType: "application/octet-stream",
-        buffer: Buffer.from(files["track.verso." + ext]),
-      });
+    await page.getByLabel("Audio-Datei öffnen", { exact: true }).setInputFiles({
+      name: "dual." + ext,
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from(files["track.verso." + ext]),
+    });
     await page.waitForFunction(() =>
       document.querySelector(".track-summary")?.textContent.includes("dual."),
     );

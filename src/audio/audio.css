@@ -655,3 +655,46 @@ main[hidden] {
   line-height: 1.7;
   font-weight: 500;
 }
+
+.audio-save-dialog {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+.audio-save-dialog > .audio-section-heading {
+  flex: none;
+}
+.export-body {
+  overflow-y: auto;
+  min-height: 0;
+  margin: 14px -26px 0;
+  padding: 0 26px;
+}
+.export-body > p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.export-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: none;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.export-footer > .primary {
+  margin-left: auto;
+}
+@media (max-width: 700px) {
+  .export-body {
+    margin-left: -20px;
+    margin-right: -20px;
+    padding: 0 20px;
+  }
+  .export-footer > .primary {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+}
