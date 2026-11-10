@@ -6,11 +6,17 @@ on:
         description: Release workflow containing release-package-linux (diagnostics only)
         required: true
         type: string
+      target:
+        description: Package check to execute
+        type: choice
+        default: both
+        options: [both, appimage, flatpak]
 permissions:
   contents: read
   actions: read
 jobs:
   appimage:
+    if: inputs.target != 'flatpak'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -29,6 +35,7 @@ jobs:
           name: diagnostics-appimage
           path: artifacts/
   flatpak:
+    if: inputs.target != 'appimage'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Test on a newer minimal distribution with no GTK or WebKit packages installed.
 set -euo pipefail
+mkdir -p artifacts
 image=$(realpath "$(find release-assets -maxdepth 1 -name '*.AppImage' -print -quit)")
 docker build -t verso-appimage-test -f packaging/appimage-test.Dockerfile packaging
 # Report the complete executable dependency closure before launching the GUI.
