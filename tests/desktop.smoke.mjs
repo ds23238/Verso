@@ -148,7 +148,7 @@ try {
       console.log("Stage: play audio", ext);
       const play = await call(`/session/${session}/element`, {
         using: "css selector",
-        value: ".play-button",
+        value: ".audio-preview .play-button",
       });
       const playId = play["element-6066-11e4-a52e-4f735466cecf"];
       await call(`/session/${session}/element/${playId}/click`, {});
