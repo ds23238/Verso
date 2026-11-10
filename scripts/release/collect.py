@@ -10,11 +10,26 @@ def single(pattern):
     return paths[0]
 if platform=='linux':
     image=single('appimage/*.AppImage');deb=single('deb/*.deb')
-    shutil.copy2(image,out/f'Verso-{version}-x86_64.AppImage')
     shutil.copy2(deb,out/f'verso_{version}_amd64.deb')
     stage=Path(os.environ['RUNNER_TEMP'])/'verso-appimage-extract';stage.mkdir(exist_ok=True)
     subprocess.run([str(image.resolve()),'--appimage-extract'],cwd=stage,check=True,stdout=subprocess.DEVNULL)
     appdir=stage/'squashfs-root'
+    # Tauri only copies usr/ from its custom files, dropping root-level hooks.
+    # Install our relocatable font hook into the final AppDir and rebuild its
+    # SquashFS while retaining the original unsigned Type-2 AppImage runtime.
+    hook=appdir/'apprun-hooks/verso-fonts.sh'
+    shutil.copy2('packaging/fonts/verso-fonts.sh',hook)
+    hook.chmod(0o755)
+    offset=int(subprocess.check_output([str(image.resolve()),'--appimage-offset'],text=True).strip())
+    squashfs=stage/'verso.squashfs'
+    subprocess.run(['mksquashfs',str(appdir),str(squashfs),'-noappend','-all-root','-no-progress'],check=True)
+    rebuilt=out/f'Verso-{version}-x86_64.AppImage'
+    with image.open('rb') as original, rebuilt.open('wb') as target:
+        runtime=original.read(offset)
+        if len(runtime)!=offset:raise SystemExit('Invalid AppImage runtime offset')
+        target.write(runtime)
+        with squashfs.open('rb') as filesystem:shutil.copyfileobj(filesystem,target)
+    rebuilt.chmod(0o755)
     required=['libfontconfig.so.1','libfreetype.so.6','libharfbuzz.so.0','libwebkit2gtk-4.1.so*','libjavascriptcoregtk-4.1.so*','WebKitWebProcess','WebKitNetworkProcess','libgstapp.so','libgstplayback.so','libgstaudioconvert.so','libgstflac.so']
     for name in required:
         if not list(appdir.rglob(name)):raise SystemExit(f'AppImage lacks required dependency: {name}')
