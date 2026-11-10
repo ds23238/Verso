@@ -3,6 +3,7 @@
 set -euo pipefail
 mkdir -p artifacts
 image=$(realpath "$(find release-assets -maxdepth 1 -name '*.AppImage' -print -quit)")
+chmod +x "$image"
 docker build -t verso-appimage-test -f packaging/appimage-test.Dockerfile packaging
 # Report the complete executable dependency closure before launching the GUI.
 docker run --rm --network none -v "$image:/release/Verso.AppImage:ro" verso-appimage-test sh -c '
