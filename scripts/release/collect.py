@@ -20,6 +20,10 @@ if platform=='linux':
     hook=appdir/'apprun-hooks/verso-fonts.sh'
     shutil.copy2('packaging/fonts/verso-fonts.sh',hook)
     hook.chmod(0o755)
+    # Tauri's legacy AppRun does not source linuxdeploy hooks itself.
+    (appdir/'AppRun').rename(appdir/'AppRun.native')
+    shutil.copy2('packaging/fonts/AppRun.sh',appdir/'AppRun')
+    (appdir/'AppRun').chmod(0o755)
     offset=int(subprocess.check_output([str(image.resolve()),'--appimage-offset'],text=True).strip())
     squashfs=stage/'verso.squashfs'
     subprocess.run(['mksquashfs',str(appdir),str(squashfs),'-noappend','-all-root','-no-progress'],check=True)
