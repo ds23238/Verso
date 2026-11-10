@@ -6,7 +6,16 @@ shift
 mkdir -p artifacts
 "$@" >"artifacts/${name}.log" 2>&1 &
 app_pid=$!
-trap 'kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
+cleanup() {
+  kill "$app_pid" 2>/dev/null || true
+  for ((i=0;i<10;i++)); do
+    kill -0 "$app_pid" 2>/dev/null || break
+    sleep 0.2
+  done
+  kill -KILL "$app_pid" 2>/dev/null || true
+  wait "$app_pid" 2>/dev/null || true
+}
+trap cleanup EXIT
 found=false
 for ((i=0;i<90;i++)); do
   if ! kill -0 "$app_pid" 2>/dev/null; then cat "artifacts/${name}.log"; exit 1; fi
