@@ -15,7 +15,7 @@ if platform=='linux':
     stage=Path(os.environ['RUNNER_TEMP'])/'verso-appimage-extract';stage.mkdir(exist_ok=True)
     subprocess.run([str(image.resolve()),'--appimage-extract'],cwd=stage,check=True,stdout=subprocess.DEVNULL)
     appdir=stage/'squashfs-root'
-    required=['libwebkit2gtk-4.1.so*','libjavascriptcoregtk-4.1.so*','WebKitWebProcess','WebKitNetworkProcess','libgstapp.so','libgstplayback.so','libgstaudioconvert.so','libgstflac.so']
+    required=['libfontconfig.so.1','libfreetype.so.6','libharfbuzz.so.0','libwebkit2gtk-4.1.so*','libjavascriptcoregtk-4.1.so*','WebKitWebProcess','WebKitNetworkProcess','libgstapp.so','libgstplayback.so','libgstaudioconvert.so','libgstflac.so']
     for name in required:
         if not list(appdir.rglob(name)):raise SystemExit(f'AppImage lacks required dependency: {name}')
     if not any(list(appdir.rglob(name)) for name in ['libgstmpg123.so','libgstlibav.so']):raise SystemExit('AppImage lacks MP3 decoder')

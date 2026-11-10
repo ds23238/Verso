@@ -2,8 +2,14 @@
   "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "active": true,
-    "targets": ["appimage", "deb"],
-    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "targets": [
+      "appimage",
+      "deb"
+    ],
+    "icon": [
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
     "category": "Music",
     "publisher": "GPT 6.1 Sol",
     "homepage": "https://github.com/ds23238/Verso",
@@ -11,11 +17,27 @@
     "linux": {
       "appimage": {
         "bundleMediaFramework": true,
-        "files": {"/usr/share/fonts/truetype/dejavu": "/usr/share/fonts/truetype/dejavu"}
+        "files": {
+          "/usr/share/fonts/truetype/dejavu": "/usr/share/fonts/truetype/dejavu",
+          "/usr/lib/libfontconfig.so.1": "/usr/lib/x86_64-linux-gnu/libfontconfig.so.1",
+          "/usr/lib/libfreetype.so.6": "/usr/lib/x86_64-linux-gnu/libfreetype.so.6",
+          "/usr/lib/libharfbuzz.so.0": "/usr/lib/x86_64-linux-gnu/libharfbuzz.so.0",
+          "/usr/lib/libexpat.so.1": "/usr/lib/x86_64-linux-gnu/libexpat.so.1",
+          "/usr/lib/libuuid.so.1": "/usr/lib/x86_64-linux-gnu/libuuid.so.1",
+          "/usr/lib/libz.so.1": "/usr/lib/x86_64-linux-gnu/libz.so.1"
+        }
       },
       "deb": {
         "section": "sound",
-        "depends": ["gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad", "gstreamer1.0-plugins-ugly", "gstreamer1.0-libav", "gstreamer1.0-pulseaudio", "fonts-dejavu-core"]
+        "depends": [
+          "gstreamer1.0-plugins-base",
+          "gstreamer1.0-plugins-good",
+          "gstreamer1.0-plugins-bad",
+          "gstreamer1.0-plugins-ugly",
+          "gstreamer1.0-libav",
+          "gstreamer1.0-pulseaudio",
+          "fonts-dejavu-core"
+        ]
       }
     }
   }
