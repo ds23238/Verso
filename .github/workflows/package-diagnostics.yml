@@ -1,0 +1,51 @@
+name: Diagnose existing Linux packages
+on:
+  workflow_dispatch:
+    inputs:
+      package_run_id:
+        description: Release workflow containing release-package-linux (diagnostics only)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-package-linux
+          run-id: ${{ inputs.package_run_id }}
+          github-token: ${{ github.token }}
+          path: release-assets/
+      - run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick tesseract-ocr
+      - run: xvfb-run -a --server-args='-screen 0 1280x1024x24 -ac' bash scripts/release/test-appimage-container.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostics-appimage
+          path: artifacts/
+  flatpak:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-package-linux
+          run-id: ${{ inputs.package_run_id }}
+          github-token: ${{ github.token }}
+          path: release-assets/
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder xvfb xdotool imagemagick dbus-x11
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - run: bash scripts/release/build-flatpak.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostics-flatpak
+          path: artifacts/
