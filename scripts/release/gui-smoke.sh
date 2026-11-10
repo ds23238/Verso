@@ -24,10 +24,11 @@ for ((i=0;i<90;i++)); do
 done
 if [[ "$found" != true ]]; then cat "artifacts/${name}.log"; echo 'No visible Verso window'; exit 1; fi
 if [[ -n "${VERSO_GUI_EXPECT_TEXT:-}" ]]; then
+  window_id=$(xdotool search --onlyvisible --name '^Verso$' | head -n1)
   rendered=false
   for ((i=0;i<30;i++)); do
     kill -0 "$app_pid"
-    import -window root "artifacts/${name}.png"
+    import -window "$window_id" "artifacts/${name}.png"
     tesseract "artifacts/${name}.png" stdout 2>"artifacts/${name}-ocr.log" >"artifacts/${name}-visible-text.txt"
     if grep -qi -- "$VERSO_GUI_EXPECT_TEXT" "artifacts/${name}-visible-text.txt"; then rendered=true; break; fi
     sleep 3
